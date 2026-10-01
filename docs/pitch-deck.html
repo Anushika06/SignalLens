@@ -1,0 +1,1415 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>SignalLens — Pitch</title>
+<meta name="description" content="SignalLens pitch deck. An autonomous, evidence-backed analyst that tells a business what materially changed, whether it is true, why it matters to that business, and who needs to know.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='10.5' fill='none' stroke='%23141833' stroke-width='2.6'/%3E%3Cpath d='M9.5 18H13l3-7.5 3 7.5h3.5' fill='none' stroke='%232E3DC8' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400..700;1,6..72,400..600&family=Public+Sans:ital,wght@0,400..750;1,400..600&display=swap">
+<style>
+/* ================= Tokens (shared with product-explainer.html) ================= */
+:root {
+  --paper: #F4F5F8;
+  --surface: #FFFFFF;
+  --surface-2: #EBEDF3;
+  --ink: #141833;
+  --ink-2: #3A4062;
+  --muted: #595F7E;
+  --rule: #D8DBE6;
+  --rule-strong: #B3B8CD;
+  --accent: #2E3DC8;
+  --accent-soft: #E3E6FB;
+  --on-ink: #FFFFFF;
+  --hl: #FFE15A;
+  --hl-ink: #1A1600;
+  --ev-confirmed: #17693C;      --ev-confirmed-bg: #DDF2E5;
+  --ev-corroborated: #0B6468;   --ev-corroborated-bg: #D5EFEF;
+  --ev-single: #7F5300;         --ev-single-bg: #FBEFCB;
+  --ev-conflicting: #7B2A9C;    --ev-conflicting-bg: #F1E2F8;
+  --ev-unverified: #4B5366;     --ev-unverified-bg: #E5E8EF;
+  --sev-critical: #B42318;
+  --sev-high: #BF4209;
+  --sev-medium: #8F6400;
+  --sev-low: #4A5873;
+  --shadow: 0 1px 2px rgba(20, 24, 51, .06), 0 18px 40px -18px rgba(20, 24, 51, .22);
+  /* deck-only */
+  --backdrop: #D9DCE6;
+  --feat-bg: #141833;
+  --feat-ink: #F4F5F8;
+  --feat-ink-2: #C9CDE0;
+  --feat-muted: #A3A9C4;
+  --feat-rule: #363C69;
+  --feat-accent: #A3AEFF;
+  --feat-surface: #1C2147;
+  --feat-dots: rgba(244, 245, 248, .07);
+  --mark-noise: var(--muted);
+  --mark-lens: var(--ink);
+  --mark-signal: var(--accent);
+  --serif: "Newsreader", "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  --sans: "Public Sans", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #0E1124;
+    --surface: #161A33;
+    --surface-2: #1F2444;
+    --ink: #EBEDF7;
+    --ink-2: #C3C8DD;
+    --muted: #A0A6C2;
+    --rule: #2B3154;
+    --rule-strong: #475085;
+    --accent: #9AA6FF;
+    --accent-soft: #232A57;
+    --on-ink: #0E1124;
+    --hl: #F2D84B;
+    --hl-ink: #17140A;
+    --ev-confirmed: #7BD9A1;      --ev-confirmed-bg: #11301F;
+    --ev-corroborated: #6CD4D6;   --ev-corroborated-bg: #0D2E31;
+    --ev-single: #F1C75F;         --ev-single-bg: #33280B;
+    --ev-conflicting: #D7A0F4;    --ev-conflicting-bg: #2D1840;
+    --ev-unverified: #B9BFD2;     --ev-unverified-bg: #252A42;
+    --sev-critical: #FF8B7D;
+    --sev-high: #FFA56E;
+    --sev-medium: #F1C75F;
+    --sev-low: #A9B5D0;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 18px 44px -18px rgba(0, 0, 0, .7);
+    --backdrop: #06081A;
+    --feat-bg: #1A1F47;
+    --feat-ink: #EEF0FA;
+    --feat-ink-2: #C9CDE0;
+    --feat-muted: #A8AECB;
+    --feat-rule: #3A417C;
+    --feat-accent: #A3AEFF;
+    --feat-surface: #232961;
+    --feat-dots: rgba(238, 240, 250, .06);
+  }
+}
+
+/* ================= Base ================= */
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+body {
+  margin: 0;
+  background: var(--backdrop);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 20px;
+  line-height: 1.45;
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+}
+h1, h2, h3, h4, p, ul, ol, dl, dd, figure, blockquote, table { margin: 0; }
+ul, ol { padding: 0; list-style: none; }
+b, strong { font-weight: 650; }
+p { text-wrap: pretty; }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
+.visually-hidden {
+  position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+.sprite { position: absolute; width: 0; height: 0; overflow: hidden; }
+.ic { width: 24px; height: 24px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.icon { width: 16px; height: 16px; flex: none; }
+
+/* ================= Deck frame ================= */
+.slide {
+  position: relative;
+  width: 1280px; height: 720px;
+  overflow: hidden;
+  display: flex; flex-direction: column;
+  padding: 50px 72px 70px;
+  background: var(--paper);
+  color: var(--ink);
+}
+@media screen {
+  html:not(.js) .stage { display: grid; justify-content: center; gap: 28px; padding: 28px 0; }
+  html.js, html.js body { height: 100%; overflow: hidden; }
+  .js .deck { position: fixed; inset: 0; overflow: hidden; }
+  .js .stage {
+    position: absolute; left: 50%; top: calc((100% - var(--notes-h, 0px)) / 2);
+    width: 1280px; height: 720px;
+    transform: translate(-50%, -50%) scale(var(--scale, 1));
+  }
+  .js .slide { position: absolute; inset: 0; display: none; box-shadow: 0 24px 70px -30px rgba(8, 10, 30, .5); }
+  .js .slide.is-active { display: flex; }
+}
+@media screen and (prefers-reduced-motion: no-preference) {
+  .js .slide.is-active .s-head,
+  .js .slide.is-active .s-body,
+  .js .slide.is-active .cover { animation: enter .38s cubic-bezier(.2, .7, .2, 1) both; }
+  .js .slide.is-active .s-body { animation-delay: .07s; }
+}
+@keyframes enter { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+/* ================= Slide chrome ================= */
+.s-head { flex: none; }
+.kicker {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 14px; line-height: 1.2; font-weight: 700; letter-spacing: .12em; text-transform: uppercase;
+  color: var(--accent); margin-bottom: 14px;
+}
+.kicker::before { content: ""; width: 24px; height: 2px; background: currentColor; }
+.s-title {
+  font-family: var(--serif); font-weight: 500; font-optical-sizing: auto;
+  font-size: 44px; line-height: 1.1; letter-spacing: -0.014em;
+  text-wrap: balance; max-width: 1090px;
+}
+.s-body { flex: 1; min-height: 0; margin-top: 30px; }
+.s-foot {
+  position: absolute; left: 72px; right: 72px; bottom: 26px;
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 13px; line-height: 1; color: var(--muted);
+}
+.s-foot__brand { display: inline-flex; align-items: center; gap: 8px; font-family: var(--serif); font-weight: 600; font-size: 15px; color: var(--ink-2); }
+.s-foot__brand svg { width: 20px; height: 20px; }
+.s-num { font-weight: 650; letter-spacing: .04em; }
+.notes { display: none; }
+.eyebrow { font-size: 14px; line-height: 1.3; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin-bottom: 14px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.fine { font-size: 15px; line-height: 1.45; color: var(--muted); }
+
+.slide--feature {
+  background-color: var(--feat-bg);
+  background-image: radial-gradient(circle at 1.5px 1.5px, var(--feat-dots) 1.5px, transparent 2px);
+  background-size: 24px 24px;
+  color: var(--feat-ink);
+  --mark-noise: var(--feat-muted);
+  --mark-lens: var(--feat-ink);
+  --mark-signal: var(--feat-accent);
+}
+.slide--feature .kicker { color: var(--feat-accent); }
+.slide--feature .s-foot { color: var(--feat-muted); }
+.slide--feature .s-foot__brand { color: var(--feat-ink-2); }
+
+/* ================= Shared components ================= */
+.mark {
+  background: var(--hl); color: var(--hl-ink);
+  padding: 0 .16em; margin: 0 -.04em; border-radius: 4px;
+  -webkit-box-decoration-break: clone; box-decoration-break: clone;
+}
+.illus {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12.5px; line-height: 1.3; font-weight: 650; letter-spacing: 0; text-transform: none;
+  color: var(--muted); border: 1.5px dashed var(--rule-strong); border-radius: 6px; padding: 2px 8px; white-space: nowrap;
+}
+.ev {
+  display: inline-flex; align-items: center; gap: 7px;
+  font-size: 15px; line-height: 1.2; font-weight: 650;
+  padding: 5px 12px 5px 8px; border-radius: 999px; white-space: nowrap;
+}
+.ev .icon { width: 17px; height: 17px; }
+.ev--confirmed { color: var(--ev-confirmed); background: var(--ev-confirmed-bg); }
+.ev--corroborated { color: var(--ev-corroborated); background: var(--ev-corroborated-bg); }
+.ev--single { color: var(--ev-single); background: var(--ev-single-bg); }
+.ev--conflicting { color: var(--ev-conflicting); background: var(--ev-conflicting-bg); }
+.ev--unverified { color: var(--ev-unverified); background: var(--ev-unverified-bg); }
+.sev { display: inline-flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 650; white-space: nowrap; }
+.sev__bars { display: inline-flex; align-items: flex-end; gap: 2px; height: 15px; }
+.sev__bars i { display: block; width: 4px; border-radius: 1px; background: var(--rule-strong); }
+.sev__bars i:nth-child(1) { height: 6px; }
+.sev__bars i:nth-child(2) { height: 9px; }
+.sev__bars i:nth-child(3) { height: 12px; }
+.sev__bars i:nth-child(4) { height: 15px; }
+.sev--high { color: var(--sev-high); }
+.sev--high .sev__bars i:nth-child(-n+3) { background: currentColor; }
+.mk {
+  position: relative; width: 44px; height: 44px; flex: none;
+  display: grid; place-items: center;
+  font-size: 16px; font-weight: 700; line-height: 1; border-radius: 50%;
+}
+.mk--code { background: var(--ink); color: var(--on-ink); }
+.mk--model { background: var(--accent); color: var(--on-ink); }
+.mk--agent { background: var(--accent); color: var(--on-ink); box-shadow: 0 0 0 3px var(--paper), 0 0 0 5.5px var(--accent); }
+.mk--you { background: var(--surface); color: var(--ink); border: 2.5px solid var(--ink); border-radius: 10px; }
+.mk--sm { width: 18px; height: 18px; font-size: 0; }
+.mk--sm.mk--agent { box-shadow: 0 0 0 2px var(--paper), 0 0 0 3.5px var(--accent); }
+.mk--sm.mk--you { border-width: 2px; border-radius: 5px; }
+.tag-fact { font-size: 12.5px; line-height: 1.3; font-weight: 650; color: var(--ev-confirmed); background: var(--ev-confirmed-bg); padding: 2px 9px; border-radius: 999px; white-space: nowrap; }
+.tag-ai { font-size: 12.5px; line-height: 1.3; font-weight: 650; color: var(--accent); background: var(--accent-soft); padding: 2px 9px; border-radius: 999px; white-space: nowrap; }
+.panel { background: var(--surface); border: 1px solid var(--rule); border-radius: 14px; }
+
+/* ================= 1 · Cover ================= */
+.cover { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr) 400px; gap: 48px; align-items: center; padding-top: 8px; }
+.cover__brand {
+  display: flex; align-items: center; gap: 22px;
+  font-family: var(--serif); font-weight: 600; font-size: 96px; line-height: 1; letter-spacing: -0.022em;
+  margin-bottom: 34px;
+}
+.cover__brand svg { width: 92px; height: 92px; }
+.cover__tagline { font-family: var(--serif); font-weight: 500; font-size: 40px; line-height: 1.2; letter-spacing: -0.01em; max-width: 690px; text-wrap: balance; }
+.cover__sub { margin-top: 24px; font-size: 21px; line-height: 1.5; color: var(--feat-ink-2); max-width: 640px; }
+.cover__meta { margin-top: 34px; display: flex; flex-wrap: wrap; gap: 12px; }
+.chip-feat {
+  display: inline-flex; align-items: center; gap: 10px;
+  font-size: 15px; font-weight: 600; line-height: 1.2; color: var(--feat-ink-2);
+  border: 1.5px solid var(--feat-rule); border-radius: 999px; padding: 8px 16px;
+}
+.chip-feat b { color: var(--feat-ink); font-weight: 700; }
+.cover__art svg { display: block; width: 100%; height: auto; }
+.art-noise path { fill: none; stroke: var(--feat-muted); stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
+.art-lens { fill: var(--feat-surface); stroke: var(--feat-ink); stroke-width: 7; }
+.art-signal { fill: none; stroke: var(--feat-accent); stroke-width: 7; stroke-linecap: round; stroke-linejoin: round; }
+.art-dot { fill: var(--hl); stroke: var(--feat-bg); stroke-width: 4; }
+
+/* ================= 2 · Problem ================= */
+.problem { display: flex; flex-direction: column; gap: 36px; }
+.pains { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 40px; }
+.pains li { border-top: 2px solid var(--ink); padding-top: 18px; }
+.pains .ic { width: 36px; height: 36px; color: var(--accent); stroke-width: 1.6; margin-bottom: 12px; display: block; }
+.pains h3 { font-size: 24px; line-height: 1.25; font-weight: 700; margin-bottom: 8px; }
+.pains p { font-size: 19px; line-height: 1.45; color: var(--ink-2); }
+.realq { padding: 22px 30px 28px; box-shadow: var(--shadow); border-left: 5px solid var(--accent); }
+.realq__list { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 22px; }
+.realq__list li { display: flex; gap: 12px; align-items: baseline; font-family: var(--serif); font-size: 29px; line-height: 1.2; }
+.qn {
+  flex: none; display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 50%;
+  border: 1.5px solid var(--accent); color: var(--accent);
+  font-family: var(--sans); font-size: 14px; font-weight: 700; transform: translateY(-4px);
+}
+
+/* ================= 3 · Why now ================= */
+.whynow { display: grid; grid-template-columns: 390px minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto; gap: 26px 48px; }
+.whynow__new { border-left: 4px solid var(--accent); padding: 2px 0 2px 26px; align-self: start; }
+.big-serif { font-family: var(--serif); font-size: 31px; line-height: 1.26; }
+.whynow__new .after { margin-top: 16px; font-size: 19px; color: var(--ink-2); }
+.gap-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 19px; line-height: 1.3; }
+.gap-table th, .gap-table td { padding: 12px 16px; text-align: left; vertical-align: middle; border-bottom: 1px solid var(--rule); }
+.gap-table thead th { font-size: 13.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); border-bottom: 2px solid var(--rule-strong); }
+.gap-table tbody th { width: 104px; font-size: 15px; font-weight: 700; color: var(--muted); }
+.gap-table thead th:nth-child(2) { width: 36%; }
+.gap-table td.old { color: var(--muted); }
+.gap-table td.new, .gap-table th.new { background: var(--accent-soft); }
+.gap-table thead th.new { color: var(--accent); border-radius: 10px 10px 0 0; }
+.gap-table td.new { color: var(--ink); font-weight: 600; }
+.gap-table tbody tr:last-child > * { border-bottom: 0; }
+.gap-table tbody tr:last-child td.new { border-radius: 0 0 10px 10px; }
+.gap-table td .ic { width: 20px; height: 20px; vertical-align: -4px; margin-right: 9px; stroke-width: 2.2; }
+.gap-table td.old .ic { color: var(--muted); }
+.gap-table td.new .ic { color: var(--accent); }
+.whynow__econ { grid-column: 1 / -1; display: flex; align-items: center; gap: 16px; padding: 15px 22px; font-size: 19px; color: var(--ink-2); }
+.whynow__econ .ic { width: 28px; height: 28px; color: var(--accent); }
+.whynow__econ b { color: var(--ink); }
+
+/* ================= 4 · The loop ================= */
+.loop { display: flex; flex-direction: column; }
+.phases { display: grid; grid-template-columns: 3fr 6fr; margin-bottom: 14px; }
+.phase { margin: 0 10px; text-align: center; font-size: 13.5px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--ink); }
+.phase::after { content: ""; display: block; height: 9px; margin-top: 7px; border: 2px solid var(--rule-strong); border-bottom: 0; border-radius: 4px 4px 0 0; }
+.phase--cont { color: var(--accent); }
+.phase--cont::after { border-color: var(--accent); }
+.steps { display: grid; grid-template-columns: repeat(9, minmax(0, 1fr)); }
+.step { position: relative; display: flex; flex-direction: column; align-items: center; text-align: center; padding: 0 5px; }
+.step:not(:last-child)::after { content: ""; position: absolute; top: 21px; left: calc(50% + 31px); width: calc(100% - 71px); height: 2px; background: var(--rule-strong); }
+.step:not(:first-child)::before { content: ""; position: absolute; top: 16px; left: calc(50% - 40px); border-top: 6px solid transparent; border-bottom: 6px solid transparent; border-left: 9px solid var(--rule-strong); }
+.step h3 { margin-top: 14px; font-size: 20px; line-height: 1.15; font-weight: 700; }
+.step .who { margin-top: 5px; font-size: 13px; line-height: 1.25; font-weight: 650; color: var(--muted); }
+.step .d { margin-top: 8px; font-size: 16px; line-height: 1.35; color: var(--ink-2); }
+.loop__back { display: block; width: 1136px; height: 50px; margin-top: 6px; overflow: visible; }
+.loop__back .ln { fill: none; stroke: var(--accent); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.loop__back rect { fill: var(--paper); }
+.loop__back text { font-family: var(--sans); font-size: 14px; font-weight: 650; fill: var(--accent); }
+.memory { margin-top: 12px; display: flex; align-items: center; gap: 16px; padding: 14px 20px; }
+.memory .ic { width: 30px; height: 30px; color: var(--ink); }
+.memory p { font-size: 18px; color: var(--ink-2); }
+.memory b { color: var(--ink); }
+.legend { display: flex; flex-wrap: wrap; gap: 10px 28px; margin-top: 16px; font-size: 14.5px; color: var(--ink-2); }
+.legend span { display: inline-flex; align-items: center; gap: 9px; }
+
+/* ================= 5 · The card ================= */
+.cardslide { display: grid; grid-template-columns: 704px minmax(0, 1fr); gap: 40px; align-items: start; }
+.icard { background: var(--surface); border: 1px solid var(--rule); border-radius: 16px; box-shadow: var(--shadow); overflow: hidden; font-size: 15px; line-height: 1.4; }
+.icard__top { display: flex; align-items: center; gap: 10px; padding: 14px 22px 0; }
+.crumbs { display: inline-flex; gap: 6px; font-size: 13px; color: var(--muted); }
+.crumbs span + span::before { content: "/"; margin-right: 6px; color: var(--rule-strong); }
+.hist-tag { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 650; color: var(--ink-2); background: var(--surface-2); border-radius: 999px; padding: 3px 10px 3px 7px; }
+.hist-tag .ic { width: 15px; height: 15px; stroke-width: 2; }
+.icard__title { font-family: var(--serif); font-weight: 500; font-size: 25px; line-height: 1.2; letter-spacing: -0.005em; padding: 8px 22px 14px; text-wrap: balance; }
+.icard__status { display: grid; grid-template-columns: auto auto minmax(0, 1fr); gap: 8px 30px; padding: 11px 22px; background: var(--paper); border-block: 1px solid var(--rule); }
+.kv { display: grid; gap: 5px; align-content: start; }
+.kv__k { font-size: 12px; font-weight: 700; color: var(--muted); letter-spacing: .04em; text-transform: uppercase; }
+.kv__v { font-size: 14.5px; color: var(--ink); line-height: 1.3; }
+.icard__body { padding: 14px 22px 14px; display: grid; gap: 13px; }
+.r-h { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 14.5px; font-weight: 700; margin-bottom: 8px; }
+.state { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.state > div { border: 1px solid var(--rule); border-radius: 10px; padding: 8px 12px 9px; font-size: 14.5px; line-height: 1.35; }
+.state .was { color: var(--muted); }
+.state .now { border: 1.5px solid var(--ink); color: var(--ink); }
+.st-l { display: block; font-size: 11.5px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); margin-bottom: 3px; }
+.evline { margin-top: 9px; display: flex; align-items: center; gap: 7px; font-size: 13.5px; color: var(--ink-2); }
+.evline .icon { color: var(--ev-confirmed); }
+.evline b { color: var(--ev-confirmed); }
+.assess { border-top: 2px dashed var(--rule-strong); padding-top: 12px; }
+.assess > p { font-size: 14.5px; color: var(--ink-2); }
+.assess .assume { margin-top: 6px; font-size: 13.5px; color: var(--muted); }
+.assess .assume b { color: var(--ink-2); }
+.icard__foot { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; padding: 10px 22px; border-top: 1px solid var(--rule); background: var(--paper); font-size: 14px; color: var(--ink); }
+.icard__foot .when { margin-left: auto; font-size: 12.5px; color: var(--muted); }
+.found h3 { font-family: var(--serif); font-weight: 500; font-size: 27px; line-height: 1.2; margin-bottom: 10px; }
+.found > p { font-size: 16.5px; line-height: 1.45; color: var(--ink-2); }
+.caps { position: relative; margin: 16px 0 16px; display: grid; gap: 11px; }
+.caps::before { content: ""; position: absolute; left: 9px; top: 12px; bottom: 12px; width: 2px; background: var(--rule-strong); }
+.cap { position: relative; display: grid; grid-template-columns: 20px 96px minmax(0, 1fr); gap: 12px; align-items: center; font-size: 15.5px; color: var(--ink-2); }
+.cap b { color: var(--ink); font-weight: 700; }
+.cap__m { position: relative; z-index: 1; width: 20px; height: 20px; display: grid; place-items: center; }
+.cap--ok .cap__m::before { content: ""; width: 14px; height: 14px; border-radius: 50%; background: var(--surface); border: 2px solid var(--ink-2); }
+.cap--skip .cap__m::before { content: "\00D7"; width: 18px; height: 18px; border-radius: 50%; background: var(--paper); color: var(--muted); font-size: 17px; font-weight: 700; line-height: 17px; text-align: center; }
+.cap--new .cap__m::before { content: ""; width: 14px; height: 14px; transform: rotate(45deg); background: var(--hl); border: 2px solid var(--ink); }
+.cap--skip { color: var(--muted); }
+.cap--skip b { color: var(--muted); }
+.src-note { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--rule); font-size: 13px !important; line-height: 1.45 !important; color: var(--muted) !important; }
+
+/* ================= 6 · Trust ================= */
+.trust { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr); gap: 52px; }
+.statuses ul { display: grid; }
+.statuses li { display: grid; grid-template-columns: 168px minmax(0, 1fr); gap: 16px; align-items: center; padding: 10px 0; border-top: 1px solid var(--rule); }
+.statuses li:last-child { border-bottom: 1px solid var(--rule); }
+.statuses li p { font-size: 17px; line-height: 1.38; color: var(--ink-2); }
+.statuses .ev { justify-self: start; font-size: 15.5px; }
+.statuses .fine { margin-top: 12px; }
+.mechs { display: grid; gap: 22px; align-content: start; padding-top: 2px; }
+.mechs li { display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 16px; align-items: start; }
+.mechs .ic { width: 44px; height: 44px; padding: 9px; border-radius: 12px; background: var(--accent-soft); color: var(--accent); stroke-width: 1.8; }
+.mechs h3 { font-size: 20px; line-height: 1.25; font-weight: 700; margin-bottom: 4px; }
+.mechs p { font-size: 17px; line-height: 1.42; color: var(--ink-2); }
+
+/* ================= 7 · Signal, not noise ================= */
+.noise { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 52px; }
+.tiers { display: grid; gap: 10px; align-content: start; }
+.tier { display: grid; grid-template-columns: 200px minmax(0, 1fr) auto; gap: 22px; align-items: center; min-height: 82px; }
+.tier__shape { height: 82px; display: grid; place-items: center; font-size: 22px; font-weight: 700; }
+.tier__shape span { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; background: var(--surface); color: var(--ink); font-size: 16px; box-shadow: 0 0 0 1.5px var(--ink); }
+.t0 .tier__shape { background: var(--rule); clip-path: polygon(0 0, 100% 0, 90% 100%, 10% 100%); }
+.t1 .tier__shape { background: var(--rule-strong); clip-path: polygon(10% 0, 90% 0, 80% 100%, 20% 100%); }
+.t2 .tier__shape { background: var(--accent); clip-path: polygon(20% 0, 80% 0, 70% 100%, 30% 100%); }
+.t3 .tier__shape { background: var(--hl); clip-path: polygon(30% 0, 70% 0, 62% 100%, 38% 100%); }
+.tier h3 { font-size: 20px; line-height: 1.2; font-weight: 700; }
+.tier h3 small { font-size: 13px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-right: 8px; }
+.tier p { margin-top: 3px; font-size: 16px; line-height: 1.38; color: var(--ink-2); }
+.cost { justify-self: end; font-size: 13.5px; font-weight: 700; line-height: 1.2; padding: 5px 11px; border-radius: 999px; white-space: nowrap; }
+.cost--free { color: var(--ev-confirmed); background: var(--ev-confirmed-bg); }
+.cost--cheap { color: var(--accent); background: var(--accent-soft); }
+.cost--dear { color: var(--hl-ink); background: var(--hl); }
+.tiers .fine { margin-top: 8px; }
+.side-list { display: grid; gap: 24px; align-content: start; }
+.side-list li { display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 16px; align-items: start; }
+.side-list .ic { width: 44px; height: 44px; padding: 9px; border-radius: 12px; background: var(--accent-soft); color: var(--accent); }
+.side-list h3 { font-size: 20px; line-height: 1.25; font-weight: 700; margin-bottom: 4px; }
+.side-list p { font-size: 17px; line-height: 1.42; color: var(--ink-2); }
+.rule-chip { margin-top: 8px; padding: 10px 12px; border: 1px solid var(--rule); border-radius: 10px; background: var(--surface); font-size: 14.5px !important; line-height: 1.4 !important; }
+.undo { display: inline-block; margin-left: 4px; font-size: 13px; font-weight: 700; color: var(--accent); border: 1.5px solid var(--accent); border-radius: 6px; padding: 0 7px; }
+
+/* ================= 8 · Architecture ================= */
+.arch { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 48px; }
+.ai-row { display: grid; grid-template-columns: 178px minmax(0, 1fr); gap: 14px; padding: 12px 0; border-top: 1px solid var(--rule); align-items: start; }
+.ai-row__k { display: flex; align-items: flex-start; gap: 11px; font-size: 17px; line-height: 1.25; font-weight: 700; }
+.ai-row__k .mk { margin-top: 1px; }
+.ai-row__k small { display: block; margin-top: 3px; font-size: 13px; line-height: 1.3; font-weight: 600; color: var(--muted); }
+.pills { display: flex; flex-wrap: wrap; gap: 8px; }
+.pill { font-size: 14.5px; line-height: 1.3; padding: 5px 10px; border-radius: 8px; background: var(--surface); border: 1px solid var(--rule); color: var(--ink-2); }
+.pill i { font-style: normal; font-size: 12.5px; font-weight: 700; color: var(--muted); margin-left: 6px; }
+.pill--agent { border: 1.5px solid var(--accent); background: var(--accent-soft); color: var(--ink); }
+.pill--agent b { color: var(--accent); }
+.runtime { margin-top: 8px; padding: 14px 18px; border-radius: 12px; background: var(--ink); color: var(--paper); }
+.runtime__k { font-size: 17px; font-weight: 700; }
+.runtime__k span { font-weight: 500; opacity: .85; }
+.runtime__d { margin-top: 6px; font-size: 14.5px; line-height: 1.45; opacity: .9; }
+.stack { display: grid; justify-items: stretch; }
+.node { padding: 8px 14px; border-radius: 12px; background: var(--surface); border: 1px solid var(--rule-strong); }
+.node b { display: block; font-size: 17px; }
+.node span { display: block; font-size: 14px; line-height: 1.35; color: var(--muted); }
+.node--db { border: 2px solid var(--ink); }
+.node--worker { border: 2px solid var(--accent); }
+.edge { position: relative; height: 26px; display: flex; align-items: center; padding-left: 44px; font-size: 13px; font-weight: 600; color: var(--muted); }
+.edge::before { content: ""; position: absolute; left: 26px; top: 3px; bottom: 3px; width: 2px; background: var(--rule-strong); }
+.edge::after { content: ""; position: absolute; left: 21px; bottom: 2px; border-left: 6px solid transparent; border-right: 6px solid transparent; border-top: 8px solid var(--rule-strong); }
+.edge--up::after { bottom: auto; top: 2px; border-top: 0; border-bottom: 8px solid var(--rule-strong); }
+.ext { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.ext span { padding: 6px 11px; border-radius: 10px; border: 1.5px dashed var(--rule-strong); font-size: 14.5px; font-weight: 650; line-height: 1.3; }
+.ext small { display: block; font-size: 12.5px; font-weight: 500; color: var(--muted); }
+
+/* ================= 9 · Built ================= */
+.built { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; }
+.bcol { padding: 20px 22px 18px; }
+.bnum { font-family: var(--serif); font-weight: 500; font-size: 58px; line-height: 1; letter-spacing: -0.02em; }
+.bnum--word { font-size: 38px; line-height: 1.12; padding-top: 12px; }
+.bhead { margin-top: 8px; padding-bottom: 12px; border-bottom: 1px solid var(--rule); font-size: 16px; font-weight: 700; color: var(--ink-2); }
+.bcol ul { margin-top: 12px; display: grid; gap: 8px; }
+.bcol li { position: relative; padding-left: 26px; font-size: 15.5px; line-height: 1.4; color: var(--ink-2); }
+.bcol li .ic { position: absolute; left: 0; top: 2px; width: 18px; height: 18px; color: var(--ev-confirmed); stroke-width: 2.4; }
+.seq > span { white-space: nowrap; }
+.seq > span:not(:last-child)::after {
+  content: ""; display: inline-block; width: 6px; height: 6px; margin: 0 7px 0 4px;
+  border-top: 1.8px solid var(--muted); border-right: 1.8px solid var(--muted);
+  transform: translateY(-2px) rotate(45deg);
+}
+.keys { margin-top: 20px; display: flex; align-items: center; gap: 16px; padding: 14px 20px; border-radius: 12px; border: 1.5px solid var(--ink); background: var(--surface); font-size: 17.5px; line-height: 1.4; color: var(--ink-2); }
+.keys .ic { width: 30px; height: 30px; color: var(--ink); }
+.keys b { color: var(--ink); }
+
+/* ================= 10 · Who it's for ================= */
+.whofor { display: flex; flex-direction: column; gap: 24px; }
+.icp { padding: 16px 24px 20px; }
+.icp .eyebrow { margin-bottom: 12px; }
+.icp__grid { display: grid; grid-template-columns: 1fr 1.25fr 1.15fr 1.15fr .85fr; }
+.icp__grid > div { padding: 0 18px; border-left: 1px solid var(--rule); }
+.icp__grid > div:first-child { padding-left: 0; border-left: 0; }
+.icp dt { font-size: 12.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin-bottom: 5px; }
+.icp dd { font-size: 17.5px; line-height: 1.35; color: var(--ink); }
+.whofor__row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 36px; }
+.persona { border-top: 2px solid var(--ink); padding-top: 12px; }
+.persona .eyebrow { margin-bottom: 6px; }
+.persona h3 { font-family: var(--serif); font-weight: 500; font-size: 25px; line-height: 1.2; margin-bottom: 8px; }
+.persona > p { font-size: 16.5px; line-height: 1.42; color: var(--ink-2); }
+.persona--expand { border-top-color: var(--accent); }
+.persona--expand ul { display: grid; gap: 9px; }
+.persona--expand li { padding-left: 12px; border-left: 3px solid var(--accent); font-size: 16.5px; line-height: 1.38; color: var(--ink-2); }
+.persona--expand li b { color: var(--ink); }
+.nw { white-space: nowrap; }
+.whofor__foot { font-size: 15px; line-height: 1.45; color: var(--muted); max-width: 1060px; }
+
+/* ================= 11 · Compare ================= */
+.cmp { width: 100%; border-collapse: separate; border-spacing: 0; table-layout: fixed; font-size: 15px; line-height: 1.3; }
+.cmp col.c-cap { width: 262px; }
+.cmp col.c-us { width: 176px; }
+.cmp th, .cmp td { padding: 7px 10px; text-align: left; vertical-align: middle; border-bottom: 1px solid var(--rule); }
+.cmp thead th { vertical-align: bottom; font-size: 15px; font-weight: 700; color: var(--ink); line-height: 1.2; }
+.cmp thead th small { display: block; margin-top: 3px; font-size: 12px; font-weight: 500; color: var(--muted); }
+.cmp .good th, .cmp .good td { font-size: 13px; line-height: 1.3; color: var(--ink-2); vertical-align: top; border-bottom: 2px solid var(--rule-strong); padding-top: 6px; padding-bottom: 10px; }
+.cmp .good th { font-weight: 700; color: var(--muted); letter-spacing: .06em; text-transform: uppercase; font-size: 12px; }
+.cmp tbody th { font-size: 15px; font-weight: 650; color: var(--ink); }
+.cmp .us { background: var(--accent-soft); color: var(--ink); font-weight: 650; }
+.cmp thead .us { color: var(--accent); border-radius: 12px 12px 0 0; }
+.cmp tbody tr:last-child .us { border-radius: 0 0 12px 12px; }
+.cmp tbody tr:last-child > * { border-bottom: 0; }
+.v { display: inline-flex; align-items: center; gap: 8px; }
+.v::before { content: ""; flex: none; width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--ink-2); }
+.v--yes::before { background: var(--ink-2); }
+.v--part::before { background: linear-gradient(90deg, var(--ink-2) 50%, transparent 50%); }
+.v--na::before { width: 14px; height: 2px; border: 0; border-radius: 1px; background: var(--muted); margin: 0 1px; }
+.us .v { font-size: 13.5px; font-weight: 700; color: var(--accent); }
+.us .v::before { border-color: var(--accent); background: var(--accent); }
+.cmp-foot { margin-top: 12px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 22px; font-size: 13.5px; color: var(--muted); }
+.cmp-foot .v { gap: 7px; }
+.cmp-foot .v::before { width: 13px; height: 13px; }
+.cmp-foot .v--na::before { width: 13px; height: 2px; }
+
+/* ================= 12 · Business model ================= */
+.biz { display: grid; grid-template-columns: minmax(0, 1.12fr) minmax(0, 1fr); gap: 48px; }
+.hyps ol { display: grid; gap: 14px; counter-reset: h; }
+.hyps li { counter-increment: h; display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 12px; }
+.hyps li::before { content: "H" counter(h); font-size: 13.5px; font-weight: 700; color: var(--accent); background: var(--accent-soft); border-radius: 6px; height: 24px; display: grid; place-items: center; margin-top: 1px; }
+.hyps h3 { font-size: 18.5px; line-height: 1.25; font-weight: 700; }
+.hyps p { margin-top: 2px; font-size: 15.5px; line-height: 1.42; color: var(--ink-2); }
+.econ { padding: 18px 24px 16px; }
+.econ__fig { display: flex; align-items: flex-end; gap: 16px; }
+.econ__num { font-family: var(--serif); font-weight: 500; font-size: 76px; line-height: .95; letter-spacing: -0.03em; white-space: nowrap; }
+.approx { width: 50px; height: 50px; margin-right: 10px; vertical-align: -2px; fill: none; stroke: currentColor; stroke-width: 2.1; stroke-linecap: round; }
+.econ__lbl { font-size: 16px; line-height: 1.3; font-weight: 650; color: var(--ink-2); padding-bottom: 4px; }
+.econ__lbl .illus { margin-top: 6px; }
+.econ__basis { margin-top: 12px; font-size: 13.5px; line-height: 1.45; color: var(--muted); }
+.ladder { margin-top: 14px; display: grid; border-top: 1px solid var(--rule); }
+.ladder li { display: grid; grid-template-columns: 132px minmax(0, 1fr); gap: 12px; align-items: baseline; padding: 7px 0; border-bottom: 1px solid var(--rule); font-size: 15px; line-height: 1.35; color: var(--ink-2); }
+.ladder b { font-size: 15px; color: var(--ink); }
+.econ__foot { margin-top: 12px; font-size: 14.5px; line-height: 1.42; color: var(--ink); font-weight: 600; }
+
+/* ================= 13 · Roadmap ================= */
+.road { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr) minmax(0, 1fr); gap: 0; }
+.rcol { padding: 0 28px; border-left: 1px solid var(--rule); }
+.rcol:first-child { padding-left: 0; border-left: 0; }
+.rcol:last-child { padding-right: 0; }
+.rk { display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); padding-bottom: 12px; margin-bottom: 14px; border-bottom: 3px solid var(--rule-strong); }
+.rk small { font-size: 12px; font-weight: 600; letter-spacing: .02em; text-transform: none; color: var(--muted); }
+.rcol--now .rk { color: var(--ink); border-bottom-color: var(--ink); }
+.rcol--next .rk { color: var(--accent); border-bottom-color: var(--accent); }
+.rcol ul { display: grid; gap: 11px; }
+.rcol li { position: relative; padding-left: 18px; font-size: 16.5px; line-height: 1.38; color: var(--ink-2); }
+.rcol li::before { content: ""; position: absolute; left: 0; top: .55em; width: 8px; height: 8px; border-radius: 50%; background: var(--ink-2); }
+.rcol--next li::before { background: var(--accent); }
+.rcol--later li::before { background: transparent; border: 1.5px solid var(--ink-2); }
+.rcol li b { color: var(--ink); }
+.never { margin-top: 20px; padding-top: 12px; border-top: 1px solid var(--rule); font-size: 14.5px; line-height: 1.42; color: var(--ink-2); }
+.never b { color: var(--ink); }
+
+/* ================= 14 · The ask ================= */
+.ask { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 28px; margin-top: 40px; }
+.ask > div { border-top: 2px solid var(--feat-accent); padding-top: 14px; }
+.ask__k { font-size: 14px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--feat-accent); margin-bottom: 8px; }
+.ask p:not(.ask__k) { font-size: 20px; line-height: 1.48; color: var(--feat-ink-2); }
+.ask p b { color: var(--feat-ink); }
+.closing { margin-top: auto; display: flex; align-items: center; gap: 22px; padding-top: 22px; border-top: 1px solid var(--feat-rule); }
+.closing svg { width: 72px; height: 72px; flex: none; }
+.closing p { font-family: var(--serif); font-weight: 500; font-size: 38px; line-height: 1.2; letter-spacing: -0.012em; }
+.slide--ask .s-title { font-size: 54px; max-width: 1000px; }
+.slide--ask .s-body { display: flex; flex-direction: column; margin-top: 0; }
+
+/* ================= On-screen controls ================= */
+.controls {
+  position: fixed; left: 50%; bottom: 14px; z-index: 20; transform: translateX(-50%);
+  display: flex; align-items: center; gap: 2px; padding: 4px;
+  border-radius: 999px; border: 1px solid var(--rule);
+  background: var(--surface); color: var(--ink); box-shadow: var(--shadow);
+  font-size: 14px; transition: opacity .35s ease;
+}
+.controls button {
+  appearance: none; -webkit-appearance: none; border: 0; margin: 0; padding: 0;
+  width: 38px; height: 38px; border-radius: 50%;
+  display: grid; place-items: center; cursor: pointer;
+  background: transparent; color: inherit; font: inherit;
+}
+.controls button:hover { background: var(--surface-2); }
+.controls button:disabled { opacity: .35; cursor: default; background: transparent; }
+.controls button[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); }
+.controls button[hidden] { display: none; }
+.controls .ic { width: 20px; height: 20px; }
+.counter { min-width: 66px; text-align: center; font-weight: 650; font-variant-numeric: tabular-nums; }
+.controls__sep { width: 1px; height: 20px; background: var(--rule); margin: 0 4px; }
+body.idle .controls:not(:focus-within) { opacity: 0; pointer-events: none; }
+@media (hover: none) { body.idle .controls:not(:focus-within) { opacity: 1; pointer-events: auto; } }
+@media (max-width: 760px), (max-height: 520px) {
+  .controls { left: auto; right: 8px; bottom: 8px; transform: none; padding: 2px; }
+  .controls button { width: 32px; height: 32px; }
+  .controls .ic { width: 18px; height: 18px; }
+  .counter { min-width: 50px; font-size: 13px; }
+}
+.progress { position: fixed; left: 0; right: 0; top: 0; height: 3px; z-index: 20; background: transparent; }
+.progress span { display: block; height: 100%; background: var(--accent); transform-origin: 0 50%; transform: scaleX(0); transition: transform .3s ease; }
+.notes-panel {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 15;
+  max-height: 34vh; overflow: auto; padding: 16px 24px 70px;
+  background: var(--surface); color: var(--ink); border-top: 1px solid var(--rule-strong);
+  box-shadow: 0 -12px 30px -18px rgba(8, 10, 30, .35);
+  font-size: 17px; line-height: 1.5;
+}
+.notes-panel[hidden] { display: none; }
+.notes-panel__title { font-size: 13px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
+.notes-panel__body p + p { margin-top: 8px; }
+.rotate-hint { display: none; }
+@media screen and (orientation: portrait) and (max-width: 760px) {
+  .js .rotate-hint {
+    display: block; position: fixed; left: 16px; right: 16px; top: 16px; z-index: 20;
+    padding: 10px 14px; border-radius: 10px; text-align: center;
+    background: var(--surface); color: var(--ink-2); border: 1px solid var(--rule); box-shadow: var(--shadow);
+    font-size: 14px; line-height: 1.4;
+  }
+}
+html:not(.js) .controls, html:not(.js) .progress, html:not(.js) .notes-panel { display: none; }
+
+/* ================= Print: one slide per landscape page ================= */
+@page { size: 1280px 720px; margin: 0; }
+@media print {
+  :root {
+    --paper: #F4F5F8; --surface: #FFFFFF; --surface-2: #EBEDF3; --ink: #141833; --ink-2: #3A4062; --muted: #595F7E;
+    --rule: #D8DBE6; --rule-strong: #B3B8CD; --accent: #2E3DC8; --accent-soft: #E3E6FB; --on-ink: #FFFFFF;
+    --hl: #FFE15A; --hl-ink: #1A1600;
+    --ev-confirmed: #17693C; --ev-confirmed-bg: #DDF2E5; --ev-corroborated: #0B6468; --ev-corroborated-bg: #D5EFEF;
+    --ev-single: #7F5300; --ev-single-bg: #FBEFCB; --ev-conflicting: #7B2A9C; --ev-conflicting-bg: #F1E2F8;
+    --ev-unverified: #4B5366; --ev-unverified-bg: #E5E8EF;
+    --sev-critical: #B42318; --sev-high: #BF4209; --sev-medium: #8F6400; --sev-low: #4A5873;
+    --shadow: 0 1px 2px rgba(20, 24, 51, .06), 0 18px 40px -18px rgba(20, 24, 51, .22);
+    --backdrop: #FFFFFF;
+    --feat-bg: #141833; --feat-ink: #F4F5F8; --feat-ink-2: #C9CDE0; --feat-muted: #A3A9C4; --feat-rule: #363C69;
+    --feat-accent: #A3AEFF; --feat-surface: #1C2147; --feat-dots: rgba(244, 245, 248, .07);
+  }
+  html, body { width: 1280px; height: auto; margin: 0; padding: 0; background: #FFFFFF; overflow: visible; }
+  .deck, .stage { position: static !important; transform: none !important; width: 1280px !important; height: auto !important; display: block !important; padding: 0 !important; }
+  .slide {
+    position: relative !important; display: flex !important; inset: auto !important;
+    width: 1280px; height: 720px; margin: 0; box-shadow: none !important;
+    break-after: page; page-break-after: always; break-inside: avoid;
+  }
+  .slide:last-child { break-after: auto; page-break-after: auto; }
+  .slide, .slide * { animation: none !important; transition: none !important; }
+  .controls, .progress, .notes-panel, .rotate-hint, .notes { display: none !important; }
+}
+</style>
+<script>document.documentElement.classList.add('js');</script>
+</head>
+<body>
+
+<svg class="sprite" aria-hidden="true" focusable="false">
+  <defs>
+    <symbol id="mark" viewBox="0 0 32 32">
+      <path d="M1 16.8l1.6-2.3 1.5 3.4 1.4-2.4" style="fill:none;stroke:var(--mark-noise,#595F7E);stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round"/>
+      <path d="M26.5 15.5l1.4 2.4 1.5-3.4 1.6 2.3" style="fill:none;stroke:var(--mark-noise,#595F7E);stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round"/>
+      <circle cx="16" cy="16" r="10.4" style="fill:none;stroke:var(--mark-lens,#141833);stroke-width:2.4"/>
+      <path d="M9.6 18.2h3.3l3.1-7.6 3.1 7.6h3.3" style="fill:none;stroke:var(--mark-signal,#2E3DC8);stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round"/>
+    </symbol>
+    <symbol id="i-confirmed" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.4" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M5.1 8.3l2 2 3.8-4.3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-corroborated" viewBox="0 0 16 16"><path d="M1.6 8.6l2.6 2.6 5-5.7M7.6 11.1l.2.1 5.2-5.9" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-single" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.4" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="8" cy="8" r="2.3" fill="currentColor"/></symbol>
+    <symbol id="i-conflicting" viewBox="0 0 16 16"><path d="M2.2 5.4h10.4M10.3 3l2.4 2.4-2.4 2.4M13.8 10.6H3.4M5.7 8.2l-2.4 2.4L5.7 13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-unverified" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-dasharray="2.4 2.1"/><path d="M6.4 6.5a1.7 1.7 0 1 1 2.4 1.6c-.5.2-.8.6-.8 1.1" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="8" cy="11.2" r=".9" fill="currentColor"/></symbol>
+    <symbol id="i-tick" viewBox="0 0 16 16"><path d="M3.2 8.4l3 3 6.6-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-tabs" viewBox="0 0 24 24"><rect x="7" y="3.5" width="13" height="15.5" rx="2"/><path d="M4 7.5v11.5a2 2 0 0 0 2 2h10"/><path d="M10.5 8.5h6M10.5 12h6M10.5 15.5h3.5"/></symbol>
+    <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6.5 16.5v-5a5.5 5.5 0 0 1 11 0v5l1.5 2h-14z"/><path d="M10 21a2 2 0 0 0 4 0"/><path d="M3 9.5a9.5 9.5 0 0 1 2.2-4.6M21 9.5a9.5 9.5 0 0 0-2.2-4.6"/></symbol>
+    <symbol id="i-fade" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" stroke-dasharray="2.6 2.4"/><path d="M12 7.5V12l3 2"/></symbol>
+    <symbol id="i-quote" viewBox="0 0 24 24"><path d="M4 11.5c0-3.3 1.6-5.5 4.5-6.5M4 11.5h4.5v6H4zM13 11.5c0-3.3 1.6-5.5 4.5-6.5M13 11.5h4.5v6H13z"/></symbol>
+    <symbol id="i-split" viewBox="0 0 24 24"><rect x="3.5" y="4" width="17" height="16" rx="2.5"/><path d="M3.5 12h17" stroke-dasharray="2.2 2.2"/><path d="M7 8h6M7 16h8"/></symbol>
+    <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3.5l7 2.8v5.4c0 4.2-2.9 7.6-7 8.8-4.1-1.2-7-4.6-7-8.8V6.3z"/><path d="M9 12l2.2 2.2 3.9-4.4"/></symbol>
+    <symbol id="i-person" viewBox="0 0 24 24"><circle cx="10" cy="8" r="3.5"/><path d="M3.5 20c.7-3.6 3.3-5.5 6.5-5.5 1.3 0 2.5.3 3.5.9"/><path d="M15 18.2l2 2 4-4.5"/></symbol>
+    <symbol id="i-cluster" viewBox="0 0 24 24"><circle cx="4.5" cy="5.5" r="2"/><circle cx="4.5" cy="12" r="2"/><circle cx="4.5" cy="18.5" r="2"/><path d="M6.6 6.5l7 4M6.6 12h7M6.6 17.5l7-4"/><circle cx="17.5" cy="12" r="3.8"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></symbol>
+    <symbol id="i-undo" viewBox="0 0 24 24"><path d="M8.5 5 4.5 9l4 4"/><path d="M4.5 9h10a5 5 0 0 1 0 10H10"/></symbol>
+    <symbol id="i-key" viewBox="0 0 24 24"><circle cx="8" cy="15.5" r="4.2"/><path d="M11 12.5l8.5-8.5M16.5 7l2.5 2.5M14.3 9.2l2 2"/></symbol>
+    <symbol id="i-coins" viewBox="0 0 24 24"><ellipse cx="12" cy="6.5" rx="7" ry="2.8"/><path d="M5 6.5v5.2c0 1.5 3.1 2.8 7 2.8s7-1.3 7-2.8V6.5M5 11.7v5.3c0 1.5 3.1 2.8 7 2.8s7-1.3 7-2.8v-5.3"/></symbol>
+    <symbol id="i-ledger" viewBox="0 0 24 24"><rect x="4.5" y="3.5" width="15" height="17" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.2 4.2L19 7"/></symbol>
+    <symbol id="i-minus" viewBox="0 0 24 24"><path d="M6.5 12h11"/></symbol>
+    <symbol id="i-chev-left" viewBox="0 0 24 24"><path d="M14.5 6 8.5 12l6 6"/></symbol>
+    <symbol id="i-chev-right" viewBox="0 0 24 24"><path d="M9.5 6l6 6-6 6"/></symbol>
+    <symbol id="i-notes" viewBox="0 0 24 24"><rect x="5" y="3.5" width="14" height="17" rx="2"/><path d="M8.5 8h7M8.5 12h7M8.5 16h4"/></symbol>
+    <symbol id="i-expand" viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></symbol>
+  </defs>
+</svg>
+
+<main class="deck" id="deck" aria-label="SignalLens pitch deck">
+<div class="stage" id="stage">
+
+<!-- ============================ 1 · TITLE ============================ -->
+<section class="slide slide--feature" id="slide-1">
+  <div class="cover">
+    <div>
+      <h1 class="cover__brand"><svg viewBox="0 0 32 32" aria-hidden="true" focusable="false"><use href="#mark"/></svg>SignalLens</h1>
+      <p class="cover__tagline">Know what changed, whether it’s true, and <span class="mark">why it matters to you.</span></p>
+      <p class="cover__sub">An autonomous, evidence-backed analyst that watches competitors, markets and regulators — for strategy, product-marketing and compliance teams.</p>
+      <p class="cover__meta"><span class="chip-feat">Industry domain <b>Business</b></span></p>
+    </div>
+    <figure class="cover__art" aria-hidden="true">
+      <svg viewBox="0 0 440 440" focusable="false">
+        <g class="art-noise">
+          <path d="M0 178 L12 170 L22 186 L34 172 L46 184 L58 168 L70 181 L82 174 L94 188 L106 171 L118 182 L136 176" opacity=".5"/>
+          <path d="M0 222 L10 212 L20 234 L31 216 L42 230 L54 208 L66 228 L78 214 L90 236 L102 218 L114 226 L128 222" opacity=".95"/>
+          <path d="M0 266 L13 258 L25 274 L37 260 L49 272 L61 256 L73 270 L85 262 L97 276 L109 260 L121 270 L136 264" opacity=".5"/>
+        </g>
+        <circle class="art-lens" cx="250" cy="220" r="118"/>
+        <path class="art-signal" d="M178 245 H214 L250 158 L286 245 H404"/>
+        <circle class="art-dot" cx="414" cy="245" r="11"/>
+      </svg>
+    </figure>
+  </div>
+  <footer class="s-foot"><span>Pitch deck · September 2026</span><span class="s-num">1 / 14</span></footer>
+  <aside class="notes">
+    <p>SignalLens is an always-on analyst for strategy, product-marketing and compliance teams.</p>
+    <p>It tells a business what materially changed outside it, whether it is actually true, why it matters to that business, and who needs to know. Industry domain: Business.</p>
+  </aside>
+</section>
+
+<!-- ============================ 2 · PROBLEM ============================ -->
+<section class="slide" id="slide-2">
+  <header class="s-head">
+    <p class="kicker">The problem</p>
+    <h2 class="s-title">Keeping up with competitors and regulators is still a manual, weekly grind</h2>
+  </header>
+  <div class="s-body problem">
+    <ul class="pains">
+      <li>
+        <svg class="ic" aria-hidden="true"><use href="#i-tabs"/></svg>
+        <h3>Checked by hand</h3>
+        <p>Dozens of competitor, news and regulator pages, re-checked every week against a spreadsheet.</p>
+      </li>
+      <li>
+        <svg class="ic" aria-hidden="true"><use href="#i-bell"/></svg>
+        <h3>Alerts add noise</h3>
+        <p>They report that <em>something</em> changed — often the same story many times — not whether it matters.</p>
+      </li>
+      <li>
+        <svg class="ic" aria-hidden="true"><use href="#i-fade"/></svg>
+        <h3>Nothing remembers</h3>
+        <p>Evidence lives in screenshots, history in one person’s head. When they are busy, nobody is watching.</p>
+      </li>
+    </ul>
+    <div class="realq panel">
+      <p class="eyebrow">The real question</p>
+      <ol class="realq__list">
+        <li><span class="qn">1</span>What materially changed?</li>
+        <li><span class="qn">2</span>Is it actually true?</li>
+        <li><span class="qn">3</span>Why does it matter to us?</li>
+        <li><span class="qn">4</span>Who needs to know?</li>
+      </ol>
+    </div>
+  </div>
+  <footer class="s-foot"><span class="s-foot__brand"><svg viewBox="0 0 32 32" aria-hidden="true" focusable="false"><use href="#mark"/></svg>SignalLens</span><span class="s-num">2 / 14</span></footer>
+  <aside class="notes">
+    <p>Strategy and product-marketing teams keep up with competitors, partners and regulators by re-checking dozens of sources by hand. It is slow, it is the first job dropped in a busy week, and it still misses things.</p>
+    <p>Alert tools don’t fix it: they say something changed, not whether it matters, whether it is true, or who should act. The real question has four parts.</p>
+  </aside>
+</section>
+
+<!-- ============================ 3 · WHY NOW ============================ -->
+<section class="slide" id="slide-3">
+  <header class="s-head">
+    <p class="kicker">Why now</p>
+    <h2 class="s-title">Agents can now do an analyst’s legwork. Trust still needs evidence and memory.</h2>
+  </header>
+  <div class="s-body whynow">
+    <div class="whynow__new">
+      <p class="eyebrow">What’s new</p>
+      <p class="big-serif">AI agents can plan research, use tools — search, open pages, read documents — and check their own work.</p>
+      <p class="after">Until recently, that legwork needed a person.</p>
+    </div>
+    <div>
+      <p class="eyebrow">What’s missing for business use</p>
+      <table class="gap-table">
+        <thead>
+          <tr><th scope="col"><span class="visually-hidden">Dimension</span></th><th scope="col">A general AI assistant</th><th scope="col" class="new">What trust requires</th></tr>
+        </thead>
+        <tbody>
+          <tr><th scope="row">Works</th><td class="old"><svg class="ic" aria-hidden="true"><use href="#i-minus"/></svg>When you ask</td><td class="new"><svg class="ic" aria-hidden="true"><use href="#i-check"/></svg>Continuously, on a schedule</td></tr>
+          <tr><th scope="row">Memory</th><td class="old"><svg class="ic" aria-hidden="true"><use href="#i-minus"/></svg>Starts from zero</td><td class="new"><svg class="ic" aria-hidden="true"><use href="#i-check"/></svg>A dated record of every fact</td></tr>
+          <tr><th scope="row">Proof</th><td class="old"><svg class="ic" aria-hidden="true"><use href="#i-minus"/></svg>Links</td><td class="new"><svg class="ic" aria-hidden="true"><use href="#i-check"/></svg>Quotes checked word for word</td></tr>
+          <tr><th scope="row">Context</th><td class="old"><svg class="ic" aria-hidden="true"><use href="#i-minus"/></svg>Generic</td><td class="new"><svg class="ic" aria-hidden="true"><use href="#i-check"/></svg>Your company and your teams</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="whynow__econ panel"><svg class="ic" aria-hidden="true"><use href="#i-coins"/></svg><span><b>And the economics work</b> — if AI is used sparingly: plain code for most of the work, models only where judgment is needed.</span></p>
+  </div>
+  <footer class="s-foot"><span class="s-foot__brand"><svg viewBox="0 0 32 32" aria-hidden="true" focusable="false"><use href="#mark"/></svg>SignalLens</span><span class="s-num">3 / 14</span></footer>
+  <aside class="notes">
+    <p>Current models can plan research, use tools and check their own work — an analyst’s legwork.</p>
+    <p>But a general assistant answers when asked and starts from zero every time. Business trust needs two things it lacks: evidence you can check, and a memory of what was true before. It is affordable when AI is used only where judgment is needed.</p>
+  </aside>
+</section>
+
+<!-- ============================ 4 · THE LOOP ============================ -->
+<section class="slide" id="slide-4">
+  <header class="s-head">
+    <p class="kicker">The solution</p>
+    <h2 class="s-title">One loop: set up once with you, then it runs on its own</h2>
+  </header>
+  <div class="s-body loop">
+    <div class="phases" aria-hidden="true">
+      <span class="phase">Once, with you</span>
+      <span class="phase phase--cont">Then continuously, on its own</span>
+    </div>
+    <ol class="steps">
+      <li class="step"><span class="mk mk--agent" aria-hidden="true">1</span><h3>Plan</h3><p class="who">Agent loop</p><p class="d">Researches the company; proposes sources, each with a reason</p></li>
+      <li class="step"><span class="mk mk--you" aria-hidden="true">2</span><h3>Approve</h3><p class="who">You</p><p class="d">Nothing runs until you approve or edit</p></li>
+      <li class="step"><span class="mk mk--code" aria-hidden="true">3</span><h3>Baseline + history</h3><p class="who">Code + fast model</p><p class="d">Today’s values, plus a year of archive</p></li>
+      <li class="step"><span class="mk mk--code" aria-hidden="true">4</span><h3>Monitor</h3><p class="who">Code</p><p class="d">Each source on its own schedule</p></li>
+      <li class="step"><span class="mk mk--code" aria-hidden="true">5</span><h3>Filter</h3><p class="who">Code, then fast model</p><p class="d">Cheapest test first; noise removed</p></li>
+      <li class="step"><span class="mk mk--agent" aria-hidden="true">6</span><h3>Verify</h3><p class="who">Agent loop + rules</p><p class="d">Quotes checked; status set by code</p></li>
+      <li class="step"><span class="mk mk--model" aria-hidden="true">7</span><h3>Assess impact</h3><p class="who">Strong model</p><p class="d">Why it matters to your company</p></li>
+      <li class="step"><span class="mk mk--code" aria-hidden="true">8</span><h3>Route</h3><p class="who">Code</p><p class="d">Right team: now, or in the digest</p></li>
+      <li class="step"><span class="mk mk--you" aria-hidden="true">9</span><h3>Learn</h3><p class="who">You, then rules</p><p class="d">Feedback becomes visible, undoable rules</p></li>
+    </ol>
+    <svg class="loop__back" viewBox="0 0 1136 50" aria-hidden="true" focusable="false">
+      <path class="ln" d="M1072.9 2 V24 Q1072.9 36 1060.9 36 H453.8 Q441.8 36 441.8 24 V8"/>
+      <path class="ln" d="M435.3 14.5 L441.8 7 L448.3 14.5"/>
+      <rect x="642" y="26" width="232" height="20" rx="4"/>
+      <text x="758" y="41" text-anchor="middle">Repeats for every source</text>
+    </svg>
+    <div class="memory panel">
+      <svg class="ic" aria-hidden="true"><use href="#i-ledger"/></svg>
+      <p><b>World state</b> — a dated, versioned, evidence-backed memory of every entity and fact. Every step reads from it and writes to it.</p>
+    </div>
+    <p class="legend" aria-label="Who does each step">
+      <span><span class="mk mk--sm mk--agent" aria-hidden="true"></span>Agent loop</span>
+      <span><span class="mk mk--sm mk--model" aria-hidden="true"></span>Single model call</span>
+      <span><span class="mk mk--sm mk--code" aria-hidden="true"></span>Rules in code</span>
+      <span><span class="mk mk--sm mk--you" aria-hidden="true"></span>You decide</span>
+    </p>
+  </div>
+  <footer class="s-foot"><span class="s-foot__brand"><svg viewBox="0 0 32 32" aria-hidden="true" focusable="false"><use href="#mark"/></svg>SignalLens</span><span class="s-num">4 / 14</span></footer>
+  <aside class="notes">
+    <p>You type “I want to monitor Razorpay”. The Planner agent researches it and proposes a plan with a reason and a live check for every source. Nothing runs until you approve.</p>
+    <p>SignalLens records today’s values and replays a year of archived history, then checks each source on its schedule, filters noise cheaply, verifies what matters, explains the impact for your company, routes it, and learns from your feedback. Two agent loops; everything else is code or a single model call.</p>
+  </aside>
+</section>
+
+<!-- ============================ 5 · THE CARD ============================ -->
+<section class="slide" id="slide-5">
+  <header class="s-head">
+    <p class="kicker">The output: one card per material change</p>
+    <h2 class="s-title">Facts with proof. The agent’s assessment, labelled.</h2>
+  </header>
+  <div class="s-body cardslide">
+    <figure class="icard" aria-label="Mock-up of an intelligence card for a real change on Razorpay’s pricing page">
+      <div class="icard__top">
+        <span class="crumbs"><span>Razorpay</span><span>Pricing &amp; fees</span><span>Pricing change</span></span>
+        <span class="hist-tag"><svg class="ic" aria-hidden="true"><use href="#i-clock"/></svg>Historical · recorded, never alerted</span>
+      </div>
+      <h3 class="icard__title">Razorpay’s pricing page adds “0%* platform fees for first 90 days”</h3>
+      <div class="icard__status">
+        <div class="kv"><span class="kv__k">Evidence status</span><span class="ev ev--confirmed"><svg class="icon" aria-hidden="true"><use href="#i-confirmed"/></svg>Confirmed</span></div>
+        <div class="kv"><span class="kv__k">Severity</span><span class="sev sev--high"><span class="sev__bars" aria-hidden="true"><i></i><i></i><i></i><i></i></span>High</span></div>
+        <div class="kv"><span class="kv__k">Teams</span><span class="kv__v">Product · Sales &amp; BD · Strategy</span></div>
+      </div>
+      <div class="icard__body">
+        <div>
+          <h4 class="r-h">What changed <span class="tag-fact">Facts</span></h4>
+          <div class="state">
+            <div class="was"><span class="st-l">Before · 9 Mar 2026 capture</span>No “0%*” platform-fee offer on the page</div>
+            <div class="now"><span class="st-l">After · 6 Jul 2026 capture · still live</span><span class="mark">“0%* platform fees for first 90 days”</span></div>
+          </div>
+          <p class="evline"><svg class="icon" aria-hidden="true"><use href="#i-tick"/></svg><b>Quote verified</b> on razorpay.com/pricing, archived and live · primary source · supports</p>
+        </div>
+        <div class="assess">
+          <h4 class="r-h">Why it matters to Orbit Payments <span class="tag-ai">Agent assessment</span><span class="illus">Illustrative</span></h4>
+          <p>A 90-day fee holiday lowers the cost of switching gateways for small merchants — Orbit’s core segment. Expect price objections in new-merchant deals while the offer runs.</p>
+          <p class="assume"><b>Assumes:</b> the offer applies to new merchants only — its terms were not verified.</p>
+        </div>
+      </div>
+    </figure>
+    <div class="found">
+      <h3>A real change, found on day one</h3>
+      <p>Replaying archived captures of razorpay.com/pricing shows when the offer appeared:</p>
+      <ol class="caps">
+        <li class="cap cap--ok"><span class="cap__m" aria-hidden="true"></span><b>9 Mar 2026</b><span>Offer absent</span></li>
+        <li class="cap cap--skip"><span class="cap__m" aria-hidden="true"></span><b>Apr 2026</b><span>Empty JavaScript shell, skipped</span></li>
+        <li class="cap cap--skip"><span class="cap__m" aria-hidden="true"></span><b>Jun 2026</b><span>Empty JavaScript shell, skipped</span></li>
+        <li class="cap cap--new"><span class="cap__m" aria-hidden="true"></span><b>6 Jul 2026</b><span>Offer present</span></li>
+      </ol>
+      <p>4 of 10 monthly captures since Sep 2025 were empty shells. The quality gate skipped them instead of reporting “everything removed”.</p>
+      <p class="src-note">Real: page text, quotes and capture dates, checked 28 Sep 2026. Illustrative: severity, teams and “why it matters”, written for a fictional competitor, Orbit Payments. The card is a mock-up of the product’s layout.</p>
+    </div>
+  </div>
+  <footer class="s-foot"><span class="s-foot__brand"><svg viewBox="0 0 32 32" aria-hidden="true" focusable="false"><use href="#mark"/></svg>SignalLens</span><span class="s-num">5 / 14</span></footer>
+  <aside class="notes">
+    <p>This is a real change. Replaying archived captures of Razorpay’s pricing page shows the “0%* platform fees for first 90 days” offer is absent on 9 March 2026 and present on 6 July. Four of the ten monthly captures since September 2025 were empty JavaScript shells; the quality gate skipped them rather than raise false alarms.</p>
+    <p>The card keeps facts above the line and the agent’s assessment below it, with its assumptions. Evidence status and severity are separate labels. The “why it matters” text is illustrative — written for a fictional competitor, Orbit Payments. Historical items are recorded but never sent as alerts.</p>
+  </aside>
+</section>
+
+<!-- ============================ 6 · TRUST ============================ -->
+<section class="slide" id="slide-6">
+  <header class="s-head">
+    <p class="kicker">Trust by design</p>
+    <h2 class="s-title">How sure are we? Rules decide — not the model.</h2>
+  </header>
+  <div class="s-body trust">
+    <div class="statuses">
+      <p class="eyebrow">Five evidence statuses, computed by code</p>
+      <ul>
+        <li><span class="ev ev--confirmed"><svg class="icon" aria-hidden="true"><use href="#i-confirmed"/></svg>Confirmed</span><p>A primary source supports it: the company’s own site, the issuing regulator or a statutory registry.</p></li>
+        <li><span class="ev ev--corroborated"><svg class="icon" aria-hidden="true"><use href="#i-corroborated"/></svg>Corroborated</span><p>No primary source, but two or more independent publishers agree and none contradict.</p></li>
+        <li><span class="ev ev--single"><svg class="icon" aria-hidden="true"><use href="#i-single"/></svg>Single source</span><p>Exactly one independent publisher. Severity is capped below Critical.</p></li>
+        <li><span class="ev ev--conflicting"><svg class="icon" aria-hidden="true"><use href="#i-conflicting"/></svg>Conflicting</span><p>Primary sources disagree or contradict the claim — or independent reports clash with no primary source to settle it.</p></li>
+        <li><span class="ev ev--unverified"><svg class="icon" aria-hidden="true"><use href="#i-unverified"/></svg>Unverified</span><p>No verified supporting evidence yet. Severity is capped at Medium.</p></li>
+      </ul>
+      <p class="fine">Evaluated in a fixed order, conflict first; the first match wins. Syndicated copies count once; forums never move the status.</p>
+    </div>
+    <ul class="mechs">
+      <li><svg class="ic" aria-hidden="true"><use href="#i-quote"/></svg><div><h3>Quotes checked word for word</h3><p>Evidence counts only if its quote is found in a page the agent actually opened. Changed numbers fail.</p></div></li>
+      <li><svg class="ic" aria-hidden="true"><use href="#i-split"/></svg><div><h3>Facts kept apart from interpretation</h3><p>The assessment is labelled as the agent’s and lists its assumptions.</p></div></li>
+      <li><svg class="ic" aria-hidden="true"><use href="#i-shield"/></svg><div><h3>Web pages can’t give orders</h3><p>Fetched text is treated as data. Research tools are read-only.</p></div></li>
+      <li><svg class="ic" aria-hidden="true"><use href="#i-person"/></svg><div><h3>Humans approve anything external</h3><p>Sharing outside the company, external email and webhooks wait for a person.</p></div></li>
+    </ul>
+  </div>
+  <footer class="s-foot"><span class="s-foot__brand"><svg viewBox="0 0 32 32" aria-hidden="true" focusable="false"><use href="#mark"/></svg>SignalLens</span><span class="s-num">6 / 14</span></footer>
+  <aside class="notes">
+    <p>The model does two narrow things: it copies a quote from a page it actually opened, and it labels the quote as supporting, contradicting or context. Code does the rest — it checks every quote against the retrieved text and computes the status from fixed rules.</p>
+    <p>Nobody can defend “94% confident” in a meeting. Anyone can check “Confirmed — Razorpay’s official pricing page; no contradicting sources.” Research is autonomous; anything that leaves the company needs a person.</p>
+  </aside>
+</section>
+
+<!-- ============================ 7 · SIGNAL, NOT NOISE ============================ -->
+<section class="slide" id="slide-7">
+  <header class="s-head">
+    <p class="kicker">Signal, not noise</p>
+    <h2 class="s-title">The cheapest test goes first — most checks never reach a model</h2>
+  </header>
+  <div class="s-body noise">
+    <div class="tiers">
+      <div class="tier t0"><div class="tier__shape" aria-hidden="true"><span>0</span></div><div><h3><small>Tier 0</small>Hash &amp; “not modified”</h3><p>Unchanged pages and volatile text — timestamps, the © year — stop here.</p></div><span class="cost cost--free">Free</span></div>
+      <div class="tier t1"><div class="tier__shape" aria-hidden="true"><span>1</span></div><div><h3><small>Tier 1</small>Deterministic noise filter</h3><p>Boilerplate, cookie banners and learned suppressions go. A tracked value change always passes.</p></div><span class="cost cost--free">Free</span></div>
+      <div class="tier t2"><div class="tier__shape" aria-hidden="true"><span>2</span></div><div><h3><small>Tier 2</small>Fast model</h3><p>Weighs what is left against your priorities and learned preferences.</p></div><span class="cost cost--cheap">Cheap</span></div>
+      <div class="tier t3"><div class="tier__shape" aria-hidden="true"><span>3</span></div><div><h3><small>Tier 3</small>Investigation</h3><p>Only above the area’s threshold: the Verifier agent, then impact analysis.</p></div><span class="cost cost--dear">Costly · rare</span></div>
+      <p class="fine">Filtered, not forgotten: every removed change is listed with its tier and the reason.</p>
+    </div>
+    <ul class="side-list">
+      <li><svg class="ic" aria-hidden="true"><use href="#i-cluster"/></svg><div><h3>Clustering is corroboration</h3><p>Every report of one event becomes one card — and its evidence. Syndicated copies count once.</p></div></li>
+      <li><svg class="ic" aria-hidden="true"><use href="#i-clock"/></svg><div><h3>Now, or in the digest</h3><p>Critical and high go to the owning team at once, by inbox and Slack. The rest wait for the daily digest.</p></div></li>
+      <li><svg class="ic" aria-hidden="true"><use href="#i-undo"/></svg><div><h3>Feedback becomes rules you can undo</h3><p class="rule-chip">“Because you marked 2 minor product-page changes as not relevant, I now alert only on medium or higher changes there.” <span class="undo">Undo</span></p></div></li>
+    </ul>
+  </div>
+  <footer class="s-foot"><span class="s-foot__brand"><svg viewBox="0 0 32 32" aria-hidden="true" focusable="false"><use href="#mark"/></svg>SignalLens</span><span class="s-num">7 / 14</span></footer>
+  <aside class="notes">
+    <p>The measure of a monitoring product is how much it correctly throws away. Most checks stop at a content hash. Rules remove boilerplate for free. A fast model weighs what remains. Only material changes reach the investigation agent.</p>
+    <p>Many articles about one event become one card, and they count as corroboration. Urgent items go out immediately; the rest wait for the digest. Feedback becomes rules in plain words, with an undo — nothing is learned silently.</p>
+  </aside>
+</section>
+
+<!-- ============================ 8 · ARCHITECTURE ============================ -->
+<section class="slide" id="slide-8">
+  <header class="s-head">
+    <p class="kicker">Architecture</p>
+    <h2 class="s-title">Two agent loops; everything else is deterministic</h2>
+  </header>
+  <div class="s-body arch">
+    <div>
+      <div class="ai-row">
+        <p class="ai-row__k"><span class="mk mk--sm mk--agent" aria-hidden="true"></span><span>Two agent loops<small>choose their next step, within a hard budget</small></span></p>
+        <ul class="pills"><li class="pill pill--agent"><b>Planner</b> researches the subject, proposes the plan</li><li class="pill pill--agent"><b>Verifier</b> searches, opens pages, records quotes, decides when to stop</li></ul>
+      </div>
+      <div class="ai-row">
+        <p class="ai-row__k"><span class="mk mk--sm mk--model" aria-hidden="true"></span><span>Single typed model calls</span></p>
+        <ul class="pills"><li class="pill">Extraction &amp; news triage<i>fast</i></li><li class="pill">Materiality<i>fast</i></li><li class="pill">Impact analysis<i>strong</i></li></ul>
+      </div>
+      <div class="ai-row">
+        <p class="ai-row__k"><span class="mk mk--sm mk--code" aria-hidden="true"></span><span>Deterministic code</span></p>
+        <ul class="pills"><li class="pill">Fetch &amp; snapshots</li><li class="pill">Diff &amp; noise filter</li><li class="pill">Evidence rules</li><li class="pill">Severity caps</li><li class="pill">Routing</li><li class="pill">Scheduling</li></ul>
+      </div>
+      <div class="runtime">
+        <p class="runtime__k">Custom agent runtime <span>— runs, steps, typed tools, budgets, guardrails, traces</span></p>
+        <p class="runtime__d">Each step is one validated decision. Budgets cap steps, tool calls, time and cost; web text is fenced as untrusted; every call is traced with tokens and cost.</p>
+      </div>
+    </div>
+    <div class="stack" aria-label="System diagram">
+      <div class="node"><b>Next.js web app</b><span>onboarding · plan review · dashboard · cards · traces</span></div>
+      <div class="edge">/api, same-origin session</div>
+      <div class="node"><b>FastAPI</b><span>REST API · auth · workspaces</span></div>
+      <div class="edge">writes rows + jobs in one transaction</div>
+      <div class="node node--db"><b>PostgreSQL</b><span>world state + job queue (SKIP LOCKED)</span></div>
+      <div class="edge edge--up">worker claims jobs</div>
+      <div class="node node--worker"><b>Worker</b><span>scheduler · pipelines · agent runtime</span></div>
+      <div class="edge">reads the outside world</div>
+      <div class="ext">
+        <span>Web pages<small>robots.txt · SSRF guard</small></span>
+        <span>Web archive<small>Internet Archive</small></span>
+        <span>Search API<small>Tavily · Exa · Serper</small></span>
+        <span>Model APIs<small>Anthropic · OpenAI · Gemini</small></span>
+      </div>
+    </div>
+  </div>
+  <footer class="s-foot"><span class="s-foot__brand"><svg viewBox="0 0 32 32" aria-hidden="true" focusable="false"><use href="#mark"/></svg>SignalLens</span><span class="s-num">8 / 14</span></footer>
+  <aside class="notes">
+    <p>We built our own agent runtime: runs, steps, typed tools with side-effect classes, budgets enforced by the runtime, guardrails that can send an agent back to work, and a trace of every decision and tool call.</p>
+    <p>Only planning and verification are open-ended agent loops. Everything else is deterministic code or a single typed model call — cheaper, faster and testable. FastAPI and PostgreSQL, with the job queue in the same database so jobs commit in the same transaction as the change that causes them; a Next.js web app on top.</p>
+  </aside>
+</section>
+
+<!-- ============================ 9 · BUILT AND VERIFIED ============================ -->
+<section class="slide" id="slide-9">
+  <header class="s-head">
+    <p class="kicker">Built and verified</p>
+    <h2 class="s-title">Built end to end — and plain about what has been verified</h2>
+  </header>
+  <div class="s-body">
+    <div class="built">
+      <div class="bcol panel">
+        <p class="bnum">385</p>
+        <p class="bhead">automated backend tests pass</p>
+        <ul>
+          <li><svg class="ic" aria-hidden="true"><use href="#i-check"/></svg>Unit tests for the rules: evidence statuses, severity caps, clustering, scheduling, quote checks, SSRF, robots.txt</li>
+          <li><svg class="ic" aria-hidden="true"><use href="#i-check"/></svg>Full-loop integration on PostgreSQL, with a scripted model and a simulated web: <span class="seq"><span>request</span><span>plan</span><span>approval</span><span>baseline</span><span>change</span><span>filter</span><span>verify</span><span>card</span><span>route</span><span>feedback</span></span></li>
+        </ul>
+      </div>
+      <div class="bcol panel">
+        <p class="bnum bnum--word">razorpay.com</p>
+        <p class="bhead">real-world checks, 28 Sep 2026</p>
+        <ul>
+          <li><svg class="ic" aria-hidden="true"><use href="#i-check"/></svg>Live pricing page extracted with the 2% headline, the 0%* offer and the 2.15% + GST footnote intact</li>
+          <li><svg class="ic" aria-hidden="true"><use href="#i-check"/></svg>robots.txt read and honoured</li>
+          <li><svg class="ic" aria-hidden="true"><use href="#i-check"/></svg>SSRF guard refuses the cloud-metadata address</li>
+          <li><svg class="ic" aria-hidden="true"><use href="#i-check"/></svg>Web-archive history: 10 captures, 4 empty shells rejected, the offer change located</li>
+        </ul>
+      </div>
+      <div class="bcol panel">
+        <p class="bnum bnum--word">Every screen</p>
+        <p class="bhead">of the web app, built</p>
+        <ul>
+          <li><svg class="ic" aria-hidden="true"><use href="#i-check"/></svg>Onboarding, live planner and plan review</li>
+          <li><svg class="ic" aria-hidden="true"><use href="#i-check"/></svg>Dashboard, intelligence feed and cards</li>
+          <li><svg class="ic" aria-hidden="true"><use href="#i-check"/></svg>World state, monitoring, learned rules</li>
+          <li><svg class="ic" aria-hidden="true"><use href="#i-check"/></svg>Run traces, approvals and demo lab</li>
+          <li><svg class="ic" aria-hidden="true"><use href="#i-check"/></svg>Build, type-check and lint pass; clicked through against the real backend</li>
+        </ul>
+      </div>
+    </div>
+    <p class="keys"><svg class="ic" aria-hidden="true"><use href="#i-key"/></svg><span><b>Live runs need your own API keys</b> — one model provider (Anthropic, OpenAI or Gemini) and one search provider (Tavily, Exa or Serper). So far, the model-driven steps have run against a scripted model in tests.</span></p>
+  </div>
+  <footer class="s-foot"><span class="s-foot__brand"><svg viewBox="0 0 32 32" aria-hidden="true" focusable="false"><use href="#mark"/></svg>SignalLens</span><span class="s-num">9 / 14</span></footer>
+  <aside class="notes">
+    <p>The backend has 385 automated tests: unit tests for the rules, and full-loop integration tests on PostgreSQL where only the outside world is simulated — a scripted model and a fake web.</p>
+    <p>Against real sites we verified extraction and robots.txt handling on razorpay.com, private-network protection, and the web-archive history of Razorpay’s pricing page. The web app has every product screen. To be plain: live runs need your own model and search API keys, and the model-driven steps have not yet run against a live model.</p>
+  </aside>
+</section>
+
+<!-- ============================ 10 · WHO IT'S FOR ============================ -->
+<section class="slide" id="slide-10">
+  <header class="s-head">
+    <p class="kicker">Who it’s for</p>
+    <h2 class="s-title">Beachhead: B2B teams without a CI team</h2>
+  </header>
+  <div class="s-body whofor">
+    <div class="icp panel">
+      <p class="eyebrow">Ideal customer profile <span class="illus">Hypothesis to validate with design partners</span></p>
+      <dl class="icp__grid">
+        <div><dt>Companies</dt><dd>B2B, roughly <span class="nw">100–2,000</span> employees</dd></div>
+        <div><dt>Markets</dt><dd>Fast-moving and public: payments, fintech, B2B SaaS</dd></div>
+        <div><dt>Competitors</dt><dd>5–20 direct, plus the regulators that matter</dd></div>
+        <div><dt>Team</dt><dd>A small strategy or PMM function, no CI team</dd></div>
+        <div><dt>First market</dt><dd>India (proposed)</dd></div>
+      </dl>
+    </div>
+    <div class="whofor__row">
+      <div class="persona">
+        <p class="eyebrow">Primary user</p>
+        <h3>“The keeper of the competitor spreadsheet”</h3>
+        <p>A product marketer, strategy associate or CI analyst. Wants no surprises, and “what changed?” answered in a minute, with evidence.</p>
+      </div>
+      <div class="persona">
+        <p class="eyebrow">Buyer</p>
+        <h3>Head of Strategy, VP Product Marketing or CPO</h3>
+        <p>Or the founder, in smaller companies. Wants systematic coverage and decisions they can defend.</p>
+      </div>
+      <div class="persona persona--expand">
+        <p class="eyebrow">Then expand to</p>
+        <ul>
+          <li><b>Enterprise CI teams</b> in pharma, automotive and manufacturing</li>
+          <li><b>Compliance teams</b> scanning the regulatory horizon</li>
+          <li><b>Investors</b> watching portfolio companies and their competitors</li>
+        </ul>
+      </div>
+    </div>
+    <p class="whofor__foot">Product, Sales &amp; BD, Compliance and Leadership receive what is routed to them and configure nothing. The engine works in any industry: the planner discovers a domain model per company — EVs and plants for Tata Motors; trials and approvals for Pfizer.</p>
+  </div>
+  <footer class="s-foot"><span class="s-foot__brand"><svg viewBox="0 0 32 32" aria-hidden="true" focusable="false"><use href="#mark"/></svg>SignalLens</span><span class="s-num">10 / 14</span></footer>
+  <aside class="notes">
+    <p>The product is domain-agnostic; the go-to-market starts narrow. Our beachhead hypothesis: B2B companies of roughly 100 to 2,000 people in payments, fintech and B2B SaaS, with 5–20 competitors, real regulatory exposure, and a small strategy or PMM team but no CI team.</p>
+    <p>The user is whoever keeps the competitor spreadsheet; the buyer is the Head of Strategy, VP Product Marketing or CPO. Regulation brings Compliance in as a second team in the same account.</p>
+  </aside>
+</section>
+
+<!-- ============================ 11 · WHY WE WIN ============================ -->
+<section class="slide" id="slide-11">
+  <header class="s-head">
+    <p class="kicker">Why we win</p>
+    <h2 class="s-title">Others do part of the job. SignalLens does it end to end.</h2>
+  </header>
+  <div class="s-body">
+    <table class="cmp">
+      <caption class="visually-hidden">Category-level, qualitative comparison of SignalLens with five kinds of tools</caption>
+      <colgroup><col class="c-cap"><col><col><col><col><col><col class="c-us"></colgroup>
+      <thead>
+        <tr>
+          <th scope="col"><span class="visually-hidden">Capability</span></th>
+          <th scope="col">Page-change monitors<small>e.g. Visualping, Distill</small></th>
+          <th scope="col">Alerts &amp; media monitoring<small>e.g. Google Alerts, Meltwater</small></th>
+          <th scope="col">CI platforms<small>e.g. Crayon, Klue</small></th>
+          <th scope="col">Research &amp; company data<small>e.g. Crunchbase, AlphaSense</small></th>
+          <th scope="col">General AI assistants<small>e.g. ChatGPT, Perplexity</small></th>
+          <th scope="col" class="us">SignalLens</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="good"><th scope="row">Great at</th><td>Simple, reliable detection on almost any page</td><td>Broad news coverage, PR and brand analytics</td><td>Battlecards and sales enablement</td><td>Deep datasets and research search</td><td>Fast answers and cited research, on demand</td><td class="us">What changed, is it true, why it matters, who needs it</td></tr>
+        <tr><th scope="row">Watches continuously, unasked</th><td><span class="v v--yes"><span class="visually-hidden">Yes</span></span></td><td><span class="v v--yes"><span class="visually-hidden">Yes</span></span></td><td><span class="v v--yes"><span class="visually-hidden">Yes</span></span></td><td><span class="v v--part"><span class="visually-hidden">Partly</span></span></td><td><span class="v v--no"><span class="visually-hidden">Typically no</span></span></td><td class="us"><span class="v v--yes">on a schedule</span></td></tr>
+        <tr><th scope="row">Removes noise before alerting</th><td><span class="v v--part"><span class="visually-hidden">Partly</span></span></td><td><span class="v v--part"><span class="visually-hidden">Partly</span></span></td><td><span class="v v--part"><span class="visually-hidden">Partly</span></span></td><td><span class="v v--na"><span class="visually-hidden">Not applicable</span></span></td><td><span class="v v--na"><span class="visually-hidden">Not applicable</span></span></td><td class="us"><span class="v v--yes">four tiers</span></td></tr>
+        <tr><th scope="row">One alert per real-world event</th><td><span class="v v--na"><span class="visually-hidden">Not applicable</span></span></td><td><span class="v v--no"><span class="visually-hidden">Typically no</span></span></td><td><span class="v v--part"><span class="visually-hidden">Partly</span></span></td><td><span class="v v--yes"><span class="visually-hidden">Yes</span></span></td><td><span class="v v--na"><span class="visually-hidden">Not applicable</span></span></td><td class="us"><span class="v v--yes">clustering</span></td></tr>
+        <tr><th scope="row">Verified quotes, rule-based status</th><td><span class="v v--no"><span class="visually-hidden">No</span></span></td><td><span class="v v--no"><span class="visually-hidden">No</span></span></td><td><span class="v v--no"><span class="visually-hidden">Typically no</span></span></td><td><span class="v v--part"><span class="visually-hidden">Partly</span></span></td><td><span class="v v--part"><span class="visually-hidden">Partly</span></span></td><td class="us"><span class="v v--yes">computed</span></td></tr>
+        <tr><th scope="row">Versioned history of facts</th><td><span class="v v--part"><span class="visually-hidden">Partly</span></span></td><td><span class="v v--part"><span class="visually-hidden">Partly</span></span></td><td><span class="v v--part"><span class="visually-hidden">Partly</span></span></td><td><span class="v v--yes"><span class="visually-hidden">Yes</span></span></td><td><span class="v v--no"><span class="visually-hidden">No</span></span></td><td class="us"><span class="v v--yes">+ a year of backfill</span></td></tr>
+        <tr><th scope="row">Why it matters to <em>your</em> company</th><td><span class="v v--no"><span class="visually-hidden">No</span></span></td><td><span class="v v--no"><span class="visually-hidden">No</span></span></td><td><span class="v v--part"><span class="visually-hidden">Partly</span></span></td><td><span class="v v--no"><span class="visually-hidden">No</span></span></td><td><span class="v v--part"><span class="visually-hidden">Partly</span></span></td><td class="us"><span class="v v--yes">your profile</span></td></tr>
+        <tr><th scope="row">Routes to the owning team by urgency</th><td><span class="v v--part"><span class="visually-hidden">Partly</span></span></td><td><span class="v v--part"><span class="visually-hidden">Partly</span></span></td><td><span class="v v--yes"><span class="visually-hidden">Yes</span></span></td><td><span class="v v--part"><span class="visually-hidden">Partly</span></span></td><td><span class="v v--no"><span class="visually-hidden">No</span></span></td><td class="us"><span class="v v--yes">now or digest</span></td></tr>
+      </tbody>
+    </table>
+    <p class="cmp-foot">
+      <span class="v v--yes">Yes</span><span class="v v--part">Partly</span><span class="v v--no">No, or typically not</span><span class="v v--na">Not applicable</span>
+      <span>Category-level and qualitative; individual products vary. Research platforms’ history and curation cover their own datasets.</span>
+    </p>
+  </div>
+  <footer class="s-foot"><span class="s-foot__brand"><svg viewBox="0 0 32 32" aria-hidden="true" focusable="false"><use href="#mark"/></svg>SignalLens</span><span class="s-num">11 / 14</span></footer>
+  <aside class="notes">
+    <p>Each category is good at something, and we say so. Page monitors detect; alert tools collect; CI platforms distribute battlecards; research platforms hold deep datasets; assistants answer when asked.</p>
+    <p>None of them typically does the whole job end to end: deciding what materially changed, proving it with a rule-based status, explaining it for your company, and routing it. The biggest competitor is still the status quo — a capable person with bookmarks and a spreadsheet. SignalLens takes over the watching; they keep the judgment.</p>
+  </aside>
+</section>
+
+<!-- ============================ 12 · BUSINESS MODEL ============================ -->
+<section class="slide" id="slide-12">
+  <header class="s-head">
+    <p class="kicker">Business model</p>
+    <h2 class="s-title">Charge for what is watched. Costs follow changes, not checks.</h2>
+  </header>
+  <div class="s-body biz">
+    <div class="hyps">
+      <p class="eyebrow">Pricing hypotheses <span class="illus">To validate — no pricing tested yet</span></p>
+      <ol>
+        <li><div><h3>Charge for what is watched, not for who reads</h3><p>Price by monitored subjects, their sources and check frequency. Unlimited readers, so intelligence spreads across teams.</p></div></li>
+        <li><div><h3>Land with one team, then expand</h3><p>Start with strategy or product marketing on 3–5 competitors; add Compliance, Sales &amp; BD and more subjects.</p></div></li>
+        <li><div><h3>A short, self-serve trial</h3><p>A year of history on day one shows value before any live change happens.</p></div></li>
+        <li><div><h3>Anchored on analyst time saved</h3><p>And on existing CI and research budgets. Possible tiers: Team, Business, Enterprise.</p></div></li>
+      </ol>
+    </div>
+    <div class="econ panel">
+      <p class="eyebrow">Unit economics</p>
+      <div class="econ__fig"><span class="econ__num"><span class="visually-hidden">Approximately </span><svg class="approx" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 9.2c3-3 6-3 9 0s6 3 9 0M3 16.2c3-3 6-3 9 0s6 3 9 0"/></svg>$4–6</span><span class="econ__lbl">model cost per workspace per month<br><span class="illus">Estimate, not a measurement</span></span></div>
+      <p class="econ__basis">Estimated from code paths and assumed volumes: one subject plus regulators, 10 sources, about 15 investigations a month. One-time onboarding, including a 12-month backfill, is estimated at well under $1.</p>
+      <ul class="ladder">
+        <li><b>Checks</b><span>Most end at a hash or “not modified” — no model</span></li>
+        <li><b>Changes</b><span>A fast, cheap model, only on what changed</span></li>
+        <li><b>Material events</b><span>Reasoning model, with a hard budget per run</span></li>
+        <li><b>Cards</b><span>One strong-model call each</span></li>
+      </ul>
+      <p class="econ__foot">Every run records its tokens and cost, so real unit costs come from measurement, not guesses.</p>
+    </div>
+  </div>
+  <footer class="s-foot"><span class="s-foot__brand"><svg viewBox="0 0 32 32" aria-hidden="true" focusable="false"><use href="#mark"/></svg>SignalLens</span><span class="s-num">12 / 14</span></footer>
+  <aside class="notes">
+    <p>Everything on the left is a hypothesis to test with design partners; no pricing has been tested yet. Charge for what is watched, not for readers, so intelligence spreads across teams. Land with strategy or PMM, expand to Compliance and Sales.</p>
+    <p>Model spend scales with how often things change, not how often we check. Our estimate for a typical plan is about $4–6 of model cost per workspace per month. It is an estimate from the code paths, not a measurement — every run records its real tokens and cost.</p>
+  </aside>
+</section>
+
+<!-- ============================ 13 · ROADMAP ============================ -->
+<section class="slide" id="slide-13">
+  <header class="s-head">
+    <p class="kicker">Roadmap</p>
+    <h2 class="s-title">The loop works today. Next: wider coverage, enterprise readiness, measured quality.</h2>
+  </header>
+  <div class="s-body road">
+    <div class="rcol rcol--now">
+      <p class="rk">Now <small>v1, built</small></p>
+      <ul>
+        <li>The full loop, from plan to learned rules</li>
+        <li>Web app with every product screen</li>
+        <li>In-app inbox, Slack and a daily digest</li>
+        <li>Approval queue for external actions</li>
+        <li>Demo lab for trials and training</li>
+      </ul>
+    </div>
+    <div class="rcol rcol--next">
+      <p class="rk">Next</p>
+      <ul>
+        <li><b>JavaScript page rendering</b> — such pages are detected and skipped today</li>
+        <li><b>Email digest</b> and Microsoft Teams</li>
+        <li><b>Single sign-on</b> and SCIM</li>
+        <li><b>More approval-gated actions</b>, such as CRM updates</li>
+        <li><b>Evaluation harness</b> — replay labelled archive history to measure precision and recall</li>
+        <li><b>Ask the world state</b> — answers that cite versions and evidence</li>
+      </ul>
+    </div>
+    <div class="rcol rcol--later">
+      <p class="rk">Later <small>direction, not commitment</small></p>
+      <ul>
+        <li>Push verified cards into CI platforms, CRMs and wikis</li>
+        <li>Registries as sources: clinical trials, patents</li>
+        <li>Portfolio views for investors</li>
+      </ul>
+      <p class="never"><b>Deliberately never:</b> six chatty agents, blanket crawling of whole sites, or a generic chat box.</p>
+    </div>
+  </div>
+  <footer class="s-foot"><span class="s-foot__brand"><svg viewBox="0 0 32 32" aria-hidden="true" focusable="false"><use href="#mark"/></svg>SignalLens</span><span class="s-num">13 / 14</span></footer>
+  <aside class="notes">
+    <p>v1 runs the whole loop. Next: rendering JavaScript-heavy pages, an email digest, single sign-on, more approval-gated actions such as CRM updates, and a replay evaluation harness that measures detection quality on labelled archive history.</p>
+    <p>Some things we will deliberately never build: six agents chatting to each other, blanket crawling, or a generic chat box.</p>
+  </aside>
+</section>
+
+<!-- ============================ 14 · THE ASK ============================ -->
+<section class="slide slide--feature slide--ask" id="slide-14">
+  <header class="s-head">
+    <p class="kicker">The ask</p>
+    <h2 class="s-title">We’re looking for design partners and pilot customers</h2>
+  </header>
+  <div class="s-body">
+    <div class="ask">
+      <div>
+        <p class="ask__k">Who</p>
+        <p>B2B teams in <b>payments, fintech or B2B SaaS</b> that track 5–20 competitors and their regulators, without a dedicated CI team.</p>
+      </div>
+      <div>
+        <p class="ask__k">The pilot</p>
+        <p>Approve a plan for <b>3–5 competitors</b> and your regulators. See a year of history on day one, then live cards routed to your teams.</p>
+      </div>
+      <div>
+        <p class="ask__k">What we measure together</p>
+        <p><b>Alert precision, time to detection and hours saved</b> — with targets set from your own baseline.</p>
+      </div>
+      <div>
+        <p class="ask__k">What you bring</p>
+        <p>A named owner, <b>feedback on every card</b>, and API keys for the model and search providers you prefer.</p>
+      </div>
+    </div>
+    <div class="closing">
+      <svg viewBox="0 0 32 32" aria-hidden="true" focusable="false"><use href="#mark"/></svg>
+      <p>Know what changed, whether it’s true, and why it matters to you.</p>
+    </div>
+  </div>
+  <footer class="s-foot"><span class="s-foot__brand"><svg viewBox="0 0 32 32" aria-hidden="true" focusable="false"><use href="#mark"/></svg>SignalLens</span><span class="s-num">14 / 14</span></footer>
+  <aside class="notes">
+    <p>We are looking for design partners and pilot customers: teams in payments, fintech or B2B SaaS that watch 5–20 competitors and their regulators without a dedicated CI team.</p>
+    <p>A pilot starts with 3–5 competitors and your regulators, a year of history on day one, then live cards. Together we measure alert precision, time to detection and hours saved. We ask for a named owner, feedback on every card, and API keys for the model and search providers you prefer.</p>
+    <p>SignalLens: know what changed, whether it’s true, and why it matters to you.</p>
+  </aside>
+</section>
+
+</div>
+</main>
+
+<nav class="controls" id="controls" aria-label="Slide navigation">
+  <button type="button" id="prev" aria-label="Previous slide" title="Previous (←)"><svg class="ic" aria-hidden="true"><use href="#i-chev-left"/></svg></button>
+  <span class="counter"><span id="cur">1</span> / <span id="tot">14</span></span>
+  <button type="button" id="next" aria-label="Next slide" title="Next (→)"><svg class="ic" aria-hidden="true"><use href="#i-chev-right"/></svg></button>
+  <span class="controls__sep" aria-hidden="true"></span>
+  <button type="button" id="notes-btn" aria-pressed="false" aria-label="Speaker notes" title="Speaker notes (N)"><svg class="ic" aria-hidden="true"><use href="#i-notes"/></svg></button>
+  <button type="button" id="fs-btn" aria-label="Full screen" title="Full screen (F)"><svg class="ic" aria-hidden="true"><use href="#i-expand"/></svg></button>
+</nav>
+<div class="progress" aria-hidden="true"><span id="bar"></span></div>
+<aside class="notes-panel" id="notes-panel" hidden aria-labelledby="notes-title">
+  <p class="notes-panel__title" id="notes-title">Speaker notes</p>
+  <div class="notes-panel__body" id="notes-body"></div>
+</aside>
+<p class="visually-hidden" id="live" aria-live="polite"></p>
+<p class="rotate-hint">Turn your device sideways for a larger view.</p>
+
+<script>
+(function () {
+  "use strict";
+  var root = document.documentElement;
+  var deck = document.getElementById("deck");
+  var slides = Array.prototype.slice.call(document.querySelectorAll(".slide"));
+  var total = slides.length;
+  var W = 1280, H = 720;
+  var cur = 0;
+  var byId = function (id) { return document.getElementById(id); };
+  var curEl = byId("cur"), bar = byId("bar"), live = byId("live");
+  var prevBtn = byId("prev"), nextBtn = byId("next"), notesBtn = byId("notes-btn"), fsBtn = byId("fs-btn");
+  var panel = byId("notes-panel"), panelBody = byId("notes-body"), panelTitle = byId("notes-title");
+
+  byId("tot").textContent = total;
+  slides.forEach(function (s, i) {
+    var h = s.querySelector("h1, h2");
+    var name = h ? h.textContent.replace(/\s+/g, " ").trim() : "";
+    s.setAttribute("role", "group");
+    s.setAttribute("aria-roledescription", "slide");
+    s.setAttribute("aria-label", (i + 1) + " of " + total + (name ? ": " + name : ""));
+    s.setAttribute("aria-hidden", "true");
+    s.setAttribute("data-name", name);
+  });
+
+  function notesHeight() { return panel.hidden ? 0 : panel.offsetHeight; }
+  function fit() {
+    var nh = notesHeight();
+    var s = Math.min(window.innerWidth / W, (window.innerHeight - nh) / H);
+    root.style.setProperty("--scale", String(Math.max(s, 0.05)));
+    root.style.setProperty("--notes-h", nh + "px");
+  }
+
+  function indexFromHash() {
+    var m = /^#(\d+)$/.exec(window.location.hash || "");
+    if (!m) return null;
+    var n = parseInt(m[1], 10);
+    return n >= 1 && n <= total ? n - 1 : null;
+  }
+
+  function renderNotes() {
+    var n = slides[cur].querySelector(".notes");
+    panelTitle.textContent = "Speaker notes · " + (cur + 1) + " / " + total + " · " + slides[cur].getAttribute("data-name");
+    panelBody.innerHTML = n ? n.innerHTML : "<p>No notes for this slide.</p>";
+  }
+
+  function show(i, announce) {
+    i = Math.max(0, Math.min(total - 1, i));
+    var changed = i !== cur;
+    slides[cur].classList.remove("is-active");
+    slides[cur].setAttribute("aria-hidden", "true");
+    slides[i].classList.add("is-active");
+    slides[i].removeAttribute("aria-hidden");
+    cur = i;
+    curEl.textContent = String(i + 1);
+    bar.style.transform = "scaleX(" + ((i + 1) / total) + ")";
+    prevBtn.disabled = i === 0;
+    nextBtn.disabled = i === total - 1;
+    var hash = "#" + (i + 1);
+    if (window.location.hash !== hash) {
+      try { history.replaceState(null, "", hash); } catch (e) { window.location.hash = hash; }
+    }
+    renderNotes();
+    if (changed || announce) live.textContent = "Slide " + slides[i].getAttribute("aria-label");
+  }
+  function next() { show(cur + 1); }
+  function prev() { show(cur - 1); }
+
+  function toggleNotes(force) {
+    var open = typeof force === "boolean" ? force : panel.hidden;
+    panel.hidden = !open;
+    notesBtn.setAttribute("aria-pressed", open ? "true" : "false");
+    fit();
+  }
+  function toggleFullscreen() {
+    if (!root.requestFullscreen) return;
+    if (document.fullscreenElement) { document.exitFullscreen(); } else { root.requestFullscreen().catch(function () {}); }
+  }
+  if (!root.requestFullscreen) fsBtn.hidden = true;
+
+  prevBtn.addEventListener("click", prev);
+  nextBtn.addEventListener("click", next);
+  notesBtn.addEventListener("click", function () { toggleNotes(); });
+  fsBtn.addEventListener("click", toggleFullscreen);
+
+  document.addEventListener("keydown", function (e) {
+    if (e.altKey || e.ctrlKey || e.metaKey) return;
+    var t = e.target;
+    var tag = t && t.tagName;
+    if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || (t && t.isContentEditable)) return;
+    var onButton = t && t.closest && t.closest("button");
+    switch (e.key) {
+      case "ArrowRight": case "ArrowDown": case "PageDown": next(); break;
+      case "ArrowLeft": case "ArrowUp": case "PageUp": prev(); break;
+      case " ": case "Spacebar":
+        if (onButton) return;
+        if (e.shiftKey) { prev(); } else { next(); }
+        break;
+      case "Home": show(0); break;
+      case "End": show(total - 1); break;
+      case "n": case "N": toggleNotes(); break;
+      case "f": case "F": toggleFullscreen(); break;
+      case "Escape": if (!panel.hidden) { toggleNotes(false); } else { return; } break;
+      default: return;
+    }
+    e.preventDefault();
+  });
+
+  /* Click or tap: the left third goes back, the rest goes forward. */
+  var suppressClickUntil = 0;
+  deck.addEventListener("click", function (e) {
+    if (Date.now() < suppressClickUntil) return;
+    if (e.target.closest && e.target.closest("a, button, input, select, textarea, summary")) return;
+    var sel = window.getSelection ? String(window.getSelection()) : "";
+    if (sel.length > 0) return;
+    if (e.clientX < window.innerWidth * 0.3) { prev(); } else { next(); }
+  });
+  /* Swipe on touch screens. */
+  var sx = null, sy = null;
+  deck.addEventListener("touchstart", function (e) {
+    if (e.touches.length !== 1) { sx = null; return; }
+    sx = e.touches[0].clientX; sy = e.touches[0].clientY;
+  }, { passive: true });
+  deck.addEventListener("touchend", function (e) {
+    if (sx === null) return;
+    var p = e.changedTouches[0], dx = p.clientX - sx, dy = p.clientY - sy;
+    sx = null;
+    if (Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(dy) * 1.3) {
+      suppressClickUntil = Date.now() + 600;
+      if (dx < 0) { next(); } else { prev(); }
+    }
+  }, { passive: true });
+
+  window.addEventListener("hashchange", function () {
+    var i = indexFromHash();
+    if (i !== null && i !== cur) show(i);
+  });
+  window.addEventListener("resize", fit);
+
+  /* Hide the controls while the pointer rests; they return on movement or focus. */
+  var idleTimer = null;
+  function wake() {
+    document.body.classList.remove("idle");
+    clearTimeout(idleTimer);
+    idleTimer = setTimeout(function () { document.body.classList.add("idle"); }, 2600);
+  }
+  document.addEventListener("mousemove", wake, { passive: true });
+  document.addEventListener("keydown", wake);
+  wake();
+
+  fit();
+  var start = indexFromHash();
+  show(start === null ? 0 : start, true);
+})();
+</script>
+</body>
+</html>

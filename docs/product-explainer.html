@@ -1,0 +1,1783 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>SignalLens — How it works</title>
+<meta name="description" content="SignalLens is an always-on analyst that tells a business what materially changed in its external environment, whether it is actually true, why it matters to that business, and who needs to know.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='10.5' fill='none' stroke='%23141833' stroke-width='2.6'/%3E%3Cpath d='M9.5 18H13l3-7.5 3 7.5h3.5' fill='none' stroke='%232E3DC8' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400..700;1,6..72,400..600&family=Public+Sans:ital,wght@0,400..750;1,400..600&display=swap">
+<style>
+/* ---------- Tokens ---------- */
+:root {
+  --paper: #F4F5F8;
+  --surface: #FFFFFF;
+  --surface-2: #EBEDF3;
+  --ink: #141833;
+  --ink-2: #3A4062;
+  --muted: #595F7E;
+  --rule: #D8DBE6;
+  --rule-strong: #B3B8CD;
+  --accent: #2E3DC8;
+  --accent-soft: #E3E6FB;
+  --on-ink: #FFFFFF;
+  --hl: #FFE15A;
+  --hl-ink: #1A1600;
+  --ev-confirmed: #17693C;      --ev-confirmed-bg: #DDF2E5;
+  --ev-corroborated: #0B6468;   --ev-corroborated-bg: #D5EFEF;
+  --ev-single: #7F5300;         --ev-single-bg: #FBEFCB;
+  --ev-conflicting: #7B2A9C;    --ev-conflicting-bg: #F1E2F8;
+  --ev-unverified: #4B5366;     --ev-unverified-bg: #E5E8EF;
+  --sev-critical: #B42318;
+  --sev-high: #BF4209;
+  --sev-medium: #8F6400;
+  --sev-low: #4A5873;
+  --shadow: 0 1px 2px rgba(20, 24, 51, .06), 0 18px 40px -18px rgba(20, 24, 51, .22);
+  --serif: "Newsreader", "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  --sans: "Public Sans", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --gutter: 16px;
+  --maxw: 1160px;
+  --radius: 12px;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #0E1124;
+    --surface: #161A33;
+    --surface-2: #1F2444;
+    --ink: #EBEDF7;
+    --ink-2: #C3C8DD;
+    --muted: #A0A6C2;
+    --rule: #2B3154;
+    --rule-strong: #475085;
+    --accent: #9AA6FF;
+    --accent-soft: #232A57;
+    --on-ink: #0E1124;
+    --hl: #F2D84B;
+    --hl-ink: #17140A;
+    --ev-confirmed: #7BD9A1;      --ev-confirmed-bg: #11301F;
+    --ev-corroborated: #6CD4D6;   --ev-corroborated-bg: #0D2E31;
+    --ev-single: #F1C75F;         --ev-single-bg: #33280B;
+    --ev-conflicting: #D7A0F4;    --ev-conflicting-bg: #2D1840;
+    --ev-unverified: #B9BFD2;     --ev-unverified-bg: #252A42;
+    --sev-critical: #FF8B7D;
+    --sev-high: #FFA56E;
+    --sev-medium: #F1C75F;
+    --sev-low: #A9B5D0;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 18px 44px -18px rgba(0, 0, 0, .7);
+  }
+}
+@media (min-width: 720px) { :root { --gutter: 24px; } }
+@media (min-width: 1100px) { :root { --gutter: 32px; } }
+
+/* ---------- Base ---------- */
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 1rem;
+  line-height: 1.6;
+  font-variant-numeric: tabular-nums;
+}
+@media (min-width: 720px) { body { font-size: 1.0625rem; } }
+h1, h2, h3, h4, h5, p, ul, ol, dl, dd, figure, blockquote { margin: 0; }
+ul, ol { padding: 0; }
+img, svg { max-width: 100%; }
+a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 3px; }
+a:hover { text-decoration-thickness: 2px; }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
+strong { font-weight: 650; }
+.visually-hidden {
+  position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+.skip {
+  position: absolute; left: 12px; top: -60px; z-index: 50;
+  background: var(--ink); color: var(--paper); padding: 10px 14px; border-radius: 8px; font-weight: 650;
+}
+.skip:focus { top: 12px; }
+.sprite { position: absolute; width: 0; height: 0; overflow: hidden; }
+.container { width: min(100% - 2 * var(--gutter), var(--maxw)); margin-inline: auto; }
+.icon { width: 16px; height: 16px; flex: none; }
+
+/* ---------- Header ---------- */
+.site-header {
+  position: sticky; top: 0; z-index: 20;
+  background: var(--paper);
+  border-bottom: 1px solid var(--rule);
+}
+.site-header__inner { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 60px; position: relative; }
+.brand { display: inline-flex; align-items: center; gap: 10px; color: var(--ink); text-decoration: none; font-family: var(--serif); font-weight: 600; font-size: 1.3rem; letter-spacing: -0.01em; }
+.brand svg { width: 30px; height: 30px; }
+.mark-lens { fill: none; stroke: currentColor; stroke-width: 2.4; }
+.mark-noise { fill: none; stroke: var(--muted); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.mark-signal { fill: none; stroke: var(--accent); stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+.site-nav { display: none; gap: 4px 18px; flex-wrap: wrap; justify-content: flex-end; font-size: .9rem; }
+.site-nav a { color: var(--ink-2); text-decoration: none; padding: 4px 0; }
+.site-nav a:hover { color: var(--ink); text-decoration: underline; }
+.toc-mobile summary {
+  list-style: none; cursor: pointer; font-weight: 650; font-size: .95rem;
+  padding: 8px 14px; border-radius: 8px; box-shadow: inset 0 0 0 1.5px var(--rule-strong);
+}
+.toc-mobile summary::-webkit-details-marker { display: none; }
+.toc-mobile[open] summary { background: var(--surface-2); }
+.toc-mobile nav {
+  position: absolute; right: 0; top: calc(100% + 8px);
+  width: min(300px, calc(100vw - 2 * var(--gutter)));
+  background: var(--surface); border: 1px solid var(--rule); border-radius: var(--radius);
+  box-shadow: var(--shadow); padding: 8px; display: grid;
+}
+.toc-mobile nav a { color: var(--ink); text-decoration: none; padding: 10px 12px; border-radius: 8px; }
+.toc-mobile nav a:hover { background: var(--surface-2); }
+@media (min-width: 1120px) {
+  .site-nav { display: flex; }
+  .toc-mobile { display: none; }
+}
+
+/* ---------- Sections ---------- */
+.section { padding-block: clamp(56px, 8vw, 112px); scroll-margin-top: 60px; }
+.section--surface { background: var(--surface); border-block: 1px solid var(--rule); }
+.section__head { max-width: 64ch; margin-bottom: clamp(32px, 4vw, 52px); }
+.section__title {
+  font-family: var(--serif); font-weight: 500; font-optical-sizing: auto;
+  font-size: clamp(1.9rem, 1.35rem + 2.2vw, 2.9rem); line-height: 1.08; letter-spacing: -0.012em;
+  text-wrap: balance; margin-bottom: 16px;
+}
+.section__intro { font-size: 1.125rem; color: var(--ink-2); max-width: 62ch; }
+.section__intro + .section__intro { margin-top: 12px; }
+.sub-title { font-family: var(--serif); font-weight: 500; font-size: clamp(1.4rem, 1.2rem + .8vw, 1.75rem); line-height: 1.2; margin-bottom: 12px; }
+.prose p + p { margin-top: 1em; }
+.note { font-size: .875rem; color: var(--muted); max-width: 72ch; }
+.illus {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: .75rem; font-weight: 650; color: var(--muted);
+  border: 1px dashed var(--rule-strong); border-radius: 6px; padding: 2px 8px;
+}
+.mark {
+  background-image: linear-gradient(var(--hl), var(--hl));
+  background-repeat: no-repeat; background-position: 0 0; background-size: 100% 100%;
+  color: var(--hl-ink); padding: .05em .25em; margin: 0 -.1em; border-radius: 3px;
+  -webkit-box-decoration-break: clone; box-decoration-break: clone;
+}
+.strike {
+  background-image: linear-gradient(var(--muted), var(--muted));
+  background-repeat: no-repeat; background-position: 0 58%; background-size: 100% 1.5px;
+}
+
+/* ---------- Chips, badges, severity ---------- */
+.chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: .8125rem; line-height: 1.25; font-weight: 600;
+  padding: 3px 10px; border-radius: 999px; background: var(--surface-2); color: var(--ink-2);
+}
+.chip--primary { background: var(--accent-soft); color: var(--accent); }
+.ev {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: .875rem; line-height: 1.25; font-weight: 650;
+  padding: 3px 10px 3px 7px; border-radius: 999px; white-space: nowrap;
+}
+.ev--confirmed { color: var(--ev-confirmed); background: var(--ev-confirmed-bg); }
+.ev--corroborated { color: var(--ev-corroborated); background: var(--ev-corroborated-bg); }
+.ev--single { color: var(--ev-single); background: var(--ev-single-bg); }
+.ev--conflicting { color: var(--ev-conflicting); background: var(--ev-conflicting-bg); }
+.ev--unverified { color: var(--ev-unverified); background: var(--ev-unverified-bg); }
+.sev { display: inline-flex; align-items: center; gap: 8px; font-size: .875rem; font-weight: 650; white-space: nowrap; }
+.sev__bars { display: inline-flex; align-items: flex-end; gap: 2px; height: 15px; }
+.sev__bars i { display: block; width: 4px; border-radius: 1px; background: var(--rule-strong); }
+.sev__bars i:nth-child(1) { height: 6px; }
+.sev__bars i:nth-child(2) { height: 9px; }
+.sev__bars i:nth-child(3) { height: 12px; }
+.sev__bars i:nth-child(4) { height: 15px; }
+.sev--critical { color: var(--sev-critical); }
+.sev--high { color: var(--sev-high); }
+.sev--medium { color: var(--sev-medium); }
+.sev--low { color: var(--sev-low); }
+.sev--low .sev__bars i:nth-child(-n+1),
+.sev--medium .sev__bars i:nth-child(-n+2),
+.sev--high .sev__bars i:nth-child(-n+3),
+.sev--critical .sev__bars i { background: currentColor; }
+
+/* ---------- Buttons ---------- */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 12px 18px; border-radius: 10px; font-weight: 650; text-decoration: none; line-height: 1.2;
+}
+.btn--primary { background: var(--ink); color: var(--paper); }
+.btn--primary:hover { background: var(--ink-2); text-decoration: none; }
+.btn--ghost { color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--rule-strong); }
+.btn--ghost:hover { background: var(--surface-2); text-decoration: none; }
+
+/* ---------- Hero ---------- */
+.hero { padding-block: clamp(40px, 7vw, 96px) clamp(56px, 8vw, 104px); }
+.hero__grid { display: grid; gap: clamp(36px, 5vw, 64px); grid-template-columns: minmax(0, 1fr); align-items: center; }
+@media (min-width: 1000px) { .hero__grid { grid-template-columns: minmax(0, 1.05fr) minmax(0, .95fr); } }
+.hero__title {
+  font-family: var(--serif); font-weight: 500; font-optical-sizing: auto;
+  font-size: clamp(2.3rem, 1.4rem + 3.6vw, 4.1rem); line-height: 1.03; letter-spacing: -0.018em;
+  text-wrap: balance; margin-bottom: 24px;
+}
+.hero__lede { font-family: var(--serif); font-size: clamp(1.2rem, 1.05rem + .6vw, 1.45rem); line-height: 1.45; color: var(--ink-2); max-width: 44ch; margin-bottom: 18px; }
+.hero__support { color: var(--ink-2); max-width: 54ch; margin-bottom: 28px; }
+.hero__actions { display: flex; flex-wrap: wrap; gap: 12px; }
+
+.lens { background: var(--surface); border: 1px solid var(--rule); border-radius: 16px; box-shadow: var(--shadow); padding: clamp(16px, 2.4vw, 24px); }
+.lens__head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; padding-bottom: 14px; border-bottom: 1px solid var(--rule); }
+.lens__src { font-weight: 650; overflow-wrap: anywhere; }
+.lens__src small { display: block; font-weight: 400; color: var(--muted); font-size: .8125rem; }
+.lens__list { list-style: none; }
+.lens__item { display: grid; grid-template-columns: minmax(0, 1fr); gap: 2px 16px; padding: 11px 0; border-bottom: 1px dashed var(--rule); }
+@media (min-width: 560px) { .lens__item { grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; } }
+.lens__change { font-size: .975rem; }
+.lens__item.is-noise .lens__change { color: var(--muted); }
+.lens__why { font-size: .8125rem; color: var(--muted); }
+.lens__item.is-signal { grid-template-columns: minmax(0, 1fr); }
+.lens__item.is-signal .lens__change { font-weight: 600; color: var(--ink); }
+.lens__item.is-signal .lens__why { color: var(--ink); font-weight: 650; }
+.lens__result { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; padding-top: 16px; }
+.lens__result .route { font-size: .875rem; color: var(--ink-2); }
+.lens__cap { margin-top: 16px; font-size: .8125rem; color: var(--muted); }
+@media (prefers-reduced-motion: no-preference) {
+  .lens .strike { animation: strike .45s ease-out both; }
+  .lens__item:nth-child(1) .strike { animation-delay: .5s; }
+  .lens__item:nth-child(2) .strike { animation-delay: .85s; }
+  .lens__item:nth-child(3) .strike { animation-delay: 1.2s; }
+  .lens__item:nth-child(4) .strike { animation-delay: 1.55s; }
+  .lens .mark { animation: sweep .7s cubic-bezier(.2, .7, .2, 1) 2.05s both; }
+  .lens__result { animation: rise .5s ease-out 2.8s both; }
+}
+@keyframes strike { from { background-size: 0% 1.5px; } to { background-size: 100% 1.5px; } }
+@keyframes sweep { from { background-size: 0% 100%; } to { background-size: 100% 100%; } }
+@keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+/* ---------- Four questions ---------- */
+.questions { list-style: none; display: grid; grid-template-columns: minmax(0, 1fr); gap: 28px; counter-reset: q; }
+@media (min-width: 720px) { .questions { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 36px 40px; } }
+@media (min-width: 1100px) { .questions { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.questions li { border-top: 2px solid var(--ink); padding-top: 16px; counter-increment: q; }
+.questions h3 { font-family: var(--serif); font-weight: 500; font-size: 1.5rem; line-height: 1.2; margin-bottom: 10px; }
+.questions h3::before { content: counter(q) "  "; color: var(--muted); font-family: var(--sans); font-size: .95rem; font-weight: 650; vertical-align: .25em; white-space: pre; }
+.questions p { color: var(--ink-2); font-size: .975rem; }
+.questions .q-name { margin-top: 12px; font-size: .8125rem; font-weight: 650; color: var(--ink); }
+
+/* ---------- Problem ---------- */
+.problem-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 40px; align-items: start; }
+@media (min-width: 1000px) { .problem-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 56px; } }
+.hard-list { list-style: none; display: grid; gap: 18px; }
+.hard-list li { display: grid; grid-template-columns: 14px minmax(0, 1fr); gap: 12px; }
+.hard-list li::before { content: ""; width: 12px; height: 2px; background: var(--ink); margin-top: .8em; }
+.hard-list strong { display: block; color: var(--ink); }
+.hard-list span.t { color: var(--ink-2); }
+.messy { background: var(--surface); border: 1px solid var(--rule); border-radius: var(--radius); padding: clamp(18px, 2.6vw, 28px); }
+.messy__head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 16px; }
+.messy__head h3 { font-family: var(--serif); font-weight: 500; font-size: 1.4rem; }
+.page-frag { border: 1px solid var(--rule); border-radius: 10px; padding: 16px; background: var(--paper); display: grid; gap: 12px; }
+.page-frag__row { display: grid; grid-template-columns: minmax(0, 1fr); gap: 2px 16px; }
+@media (min-width: 560px) { .page-frag__row { grid-template-columns: minmax(0, 1fr) minmax(0, 10.5rem); align-items: baseline; } }
+.page-frag__q { font-family: var(--serif); font-size: 1.08rem; line-height: 1.3; }
+.page-frag__q.big { font-size: 2.1rem; line-height: 1; font-weight: 600; }
+.page-frag__q.small { font-family: var(--sans); font-size: .875rem; }
+.page-frag__a { font-size: .8125rem; color: var(--muted); }
+.readings { list-style: none; display: grid; gap: 10px; margin-top: 18px; }
+.readings li { display: grid; grid-template-columns: 20px minmax(0, 1fr); gap: 10px; align-items: start; font-size: .95rem; }
+.readings .icon { margin-top: 4px; }
+.readings .wrong { color: var(--muted); }
+.readings .wrong .icon { color: var(--sev-critical); }
+.readings .right .icon { color: var(--ev-confirmed); }
+.readings .right { color: var(--ink); font-weight: 500; }
+.messy__src { margin-top: 16px; font-size: .8125rem; color: var(--muted); }
+.three-col { display: grid; grid-template-columns: minmax(0, 1fr); gap: 32px; margin-top: clamp(48px, 6vw, 72px); }
+@media (min-width: 900px) { .three-col { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 40px; } }
+.three-col > div { border-top: 1px solid var(--rule-strong); padding-top: 16px; }
+.three-col h3 { font-size: 1.05rem; margin-bottom: 8px; }
+.three-col p, .three-col li { color: var(--ink-2); font-size: .975rem; }
+.three-col ul { list-style: none; display: grid; gap: 8px; }
+
+/* ---------- How it works ---------- */
+.example-note { display: flex; gap: 12px; align-items: flex-start; background: var(--paper); border: 1px solid var(--rule); border-radius: 10px; padding: 14px 16px; margin-bottom: 40px; max-width: 72ch; font-size: .95rem; color: var(--ink-2); }
+.example-note strong { color: var(--ink); }
+.phase-title { font-family: var(--serif); font-weight: 500; font-size: 1.5rem; margin-bottom: 20px; }
+.rail { list-style: none; display: grid; }
+.rail > li { position: relative; display: grid; grid-template-columns: 34px minmax(0, 1fr); column-gap: 14px; padding-bottom: 22px; align-content: start; }
+.rail > li::before { content: ""; position: absolute; left: 16px; top: 38px; bottom: 4px; width: 2px; background: var(--rule-strong); }
+.rail > li:last-child { padding-bottom: 0; }
+.rail > li:last-child::before { display: none; }
+.rail h4 { font-size: 1.05rem; font-weight: 650; line-height: 1.3; }
+.rail .who { font-size: .8125rem; color: var(--muted); font-weight: 600; margin: 2px 0 6px; }
+.rail p.text { font-size: .95rem; color: var(--ink-2); }
+.mk {
+  width: 34px; height: 34px; display: grid; place-items: center;
+  font-size: .875rem; font-weight: 700; border-radius: 50%;
+}
+.mk--code { background: var(--ink); color: var(--on-ink); }
+.mk--model { background: var(--accent); color: var(--on-ink); }
+.mk--agent { background: var(--accent); color: var(--on-ink); box-shadow: 0 0 0 3px var(--surface), 0 0 0 5px var(--accent); }
+.mk--you { background: var(--surface); color: var(--ink); border: 2.5px solid var(--ink); border-radius: 8px; }
+@media (min-width: 900px) {
+  .rail--setup { grid-template-columns: repeat(4, minmax(0, 1fr)); column-gap: 24px; }
+  .rail--setup > li { grid-template-columns: minmax(0, 1fr); row-gap: 12px; padding-bottom: 0; }
+  .rail--setup > li::before { left: 46px; right: -14px; top: 16px; bottom: auto; width: auto; height: 2px; }
+  .rail--setup > li:last-child::before { display: none; }
+}
+.then { display: flex; align-items: center; gap: 12px; margin: 48px 0 28px; }
+.then::after { content: ""; flex: 1; height: 1px; background: var(--rule-strong); }
+.how-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 36px; align-items: start; }
+@media (min-width: 980px) { .how-grid { grid-template-columns: minmax(0, 470px) minmax(0, 1fr); gap: 56px; } }
+.ring-fig { display: none; }
+@media (min-width: 700px) { .ring-fig { display: block; max-width: 470px; width: 100%; margin-inline: auto; } }
+.ring-fig svg { display: block; width: 100%; height: auto; }
+.ring-fig figcaption { font-size: .875rem; color: var(--muted); margin-top: 8px; text-align: center; }
+.ring text { font-family: var(--sans); }
+.ring__name { font-size: 14px; font-weight: 650; fill: var(--ink); }
+.ring__who { font-size: 11.5px; fill: var(--muted); }
+.ring__track { fill: none; stroke: var(--rule); stroke-width: 10; }
+.ring__arc { fill: none; stroke: var(--ink-2); stroke-width: 1.6; }
+.ring__head { fill: var(--ink-2); }
+.ring__center-title { font-family: var(--serif) !important; font-size: 21px; font-weight: 600; fill: var(--ink); }
+.ring__center-sub { font-size: 11.5px; fill: var(--muted); }
+.ring__ledger { fill: var(--surface); stroke: var(--ink); stroke-width: 1.6; }
+.ring__ledger-line { stroke: var(--ink); stroke-width: 1.6; stroke-linecap: round; }
+.st--code { fill: var(--ink); }
+.st--model { fill: var(--accent); }
+.st--you { fill: var(--surface); stroke: var(--ink); stroke-width: 2.5; }
+.st-ring { fill: none; stroke: var(--accent); stroke-width: 2; }
+.loop-back { display: grid; grid-template-columns: 34px minmax(0, 1fr); column-gap: 14px; align-items: center; margin-top: 16px; font-size: .9rem; color: var(--muted); font-weight: 600; }
+.loop-back svg { width: 26px; height: 26px; justify-self: center; color: var(--ink-2); }
+.legend { display: flex; flex-wrap: wrap; gap: 12px 24px; margin-top: 36px; padding-top: 20px; border-top: 1px solid var(--rule); font-size: .875rem; color: var(--ink-2); }
+.legend span { display: inline-flex; align-items: center; gap: 8px; }
+.legend .mk { width: 18px; height: 18px; font-size: 0; }
+.legend .mk--agent { box-shadow: 0 0 0 2px var(--surface), 0 0 0 3.5px var(--accent); }
+.legend .mk--you { border-radius: 4px; border-width: 2px; }
+.ai-note { margin-top: 20px; max-width: 72ch; color: var(--ink-2); }
+
+.funnel { margin-top: clamp(56px, 7vw, 88px); }
+.funnel__fig { background: var(--paper); border: 1px solid var(--rule); border-radius: var(--radius); padding: clamp(16px, 2.4vw, 28px); }
+.funnel__fig svg { display: block; width: 100%; height: auto; }
+.dot-bg { fill: var(--rule-strong); }
+.dot-changed { fill: var(--ink); }
+.dot-material { fill: var(--hl); stroke: var(--ink); stroke-width: 1.2; }
+.dot-alert { fill: none; stroke: var(--ink); stroke-width: 1.4; }
+.funnel__legend { list-style: none; display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px 24px; margin-top: 20px; }
+@media (min-width: 640px) { .funnel__legend { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (min-width: 1000px) { .funnel__legend { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.funnel__legend li { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 10px; align-items: start; font-size: .9rem; color: var(--ink-2); }
+.funnel__legend svg { width: 22px; height: 22px; }
+.funnel__legend b { display: block; font-size: 1.25rem; color: var(--ink); font-weight: 700; line-height: 1.2; }
+.funnel__cap { margin-top: 16px; }
+
+/* ---------- Intelligence card mock ---------- */
+.card-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 36px; align-items: start; }
+@media (min-width: 1100px) { .card-layout { grid-template-columns: minmax(0, 1fr) 320px; gap: 48px; } }
+.report { background: var(--surface); border: 1px solid var(--rule); border-radius: 16px; box-shadow: var(--shadow); overflow: hidden; }
+.report__top { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 16px clamp(16px, 3vw, 28px) 0; }
+.crumbs { font-size: .875rem; color: var(--muted); display: inline-flex; gap: 6px; flex-wrap: wrap; }
+.crumbs span + span::before { content: "/"; margin-right: 6px; color: var(--rule-strong); }
+.report__top .illus { margin-left: auto; }
+.report__title { font-family: var(--serif); font-weight: 500; font-size: clamp(1.35rem, 1.1rem + 1vw, 1.8rem); line-height: 1.2; padding: 12px clamp(16px, 3vw, 28px) 18px; text-wrap: balance; }
+.report__status { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 16px; padding: 14px clamp(16px, 3vw, 28px); border-block: 1px solid var(--rule); background: var(--paper); }
+@media (min-width: 760px) { .report__status { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.kv { display: grid; gap: 4px; align-content: start; }
+.kv__k { font-size: .75rem; font-weight: 650; color: var(--muted); display: inline-flex; align-items: center; gap: 6px; }
+.kv__v { font-size: .9rem; color: var(--ink); }
+.pin {
+  display: inline-grid; place-items: center; width: 19px; height: 19px; border-radius: 50%;
+  background: var(--ink); color: var(--on-ink); font-size: .6875rem; font-weight: 700; font-style: normal; flex: none; line-height: 1;
+}
+.report__body { padding: 20px clamp(16px, 3vw, 28px) 24px; display: grid; gap: 22px; }
+.state { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
+@media (min-width: 640px) { .state { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.state > div { border: 1px solid var(--rule); border-radius: 10px; padding: 10px 12px; }
+.state .was { color: var(--muted); }
+.state .now { border-color: var(--ink); }
+.state p { font-size: .95rem; }
+.r-h { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; font-size: .95rem; font-weight: 700; margin-bottom: 8px; }
+.tag-fact { font-size: .75rem; font-weight: 650; color: var(--ev-confirmed); background: var(--ev-confirmed-bg); padding: 2px 8px; border-radius: 999px; }
+.tag-ai { font-size: .75rem; font-weight: 650; color: var(--accent); background: var(--accent-soft); padding: 2px 8px; border-radius: 999px; }
+.assess { border-top: 2px dashed var(--rule-strong); padding-top: 18px; }
+.assess > p { color: var(--ink-2); }
+.assess-lists { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px 20px; margin-top: 14px; }
+@media (min-width: 760px) { .assess-lists { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.assess-lists h5 { font-size: .8125rem; font-weight: 700; margin-bottom: 4px; }
+.assess-lists ul { list-style: none; display: grid; gap: 4px; font-size: .875rem; color: var(--ink-2); }
+.assess-lists li { padding-left: 12px; position: relative; }
+.assess-lists li::before { content: ""; position: absolute; left: 0; top: .7em; width: 5px; height: 1.5px; background: var(--muted); }
+.route-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; padding: 12px 14px; border-radius: 10px; background: var(--paper); border: 1px solid var(--rule); }
+.route-row .kv__k { margin-right: 4px; }
+.route-row .when { font-size: .8125rem; color: var(--muted); }
+.evsum { font-size: .9rem; color: var(--ink-2); margin-bottom: 10px; }
+.evlist { list-style: none; display: grid; gap: 10px; }
+.evlist li { border: 1px solid var(--rule); border-radius: 10px; padding: 10px 12px; }
+.evlist .src { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; font-size: .875rem; }
+.evlist .src b { font-weight: 650; margin-right: 2px; overflow-wrap: anywhere; }
+.verified { display: inline-flex; align-items: center; gap: 4px; font-size: .8125rem; font-weight: 650; color: var(--ev-confirmed); }
+.evlist blockquote { font-family: var(--serif); font-size: 1.05rem; margin-top: 8px; }
+.evlist .ctx { font-size: .875rem; color: var(--muted); margin-top: 6px; }
+.history { list-style: none; display: grid; gap: 6px; font-size: .875rem; }
+.history li { display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 8px; color: var(--ink-2); }
+.history .ver { font-weight: 700; color: var(--muted); }
+.report__foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding: 14px clamp(16px, 3vw, 28px); border-top: 1px solid var(--rule); background: var(--paper); }
+.run { font-size: .875rem; color: var(--ink-2); display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.fake-btns { display: flex; flex-wrap: wrap; gap: 8px; }
+.fake-btn { font-size: .8125rem; font-weight: 650; padding: 6px 12px; border-radius: 8px; box-shadow: inset 0 0 0 1.5px var(--rule-strong); color: var(--ink); background: var(--surface); }
+.annotations { list-style: none; display: grid; gap: 16px; }
+.annotations li { display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: 12px; font-size: .95rem; color: var(--ink-2); }
+.annotations .pin { width: 22px; height: 22px; font-size: .75rem; margin-top: 2px; }
+.annotations strong { color: var(--ink); }
+.card-note { margin-top: 20px; }
+
+/* ---------- Evidence ---------- */
+.evidence-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 44px; align-items: start; }
+@media (min-width: 1000px) { .evidence-grid { grid-template-columns: minmax(0, .85fr) minmax(0, 1.15fr); gap: 64px; } }
+.terms { display: grid; gap: 16px; }
+.terms dt { font-weight: 700; }
+.terms dd { color: var(--ink-2); font-size: .95rem; }
+.rules { list-style: none; display: grid; gap: 0; counter-reset: r; }
+.rules li { counter-increment: r; display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 12px; padding: 16px 0; border-top: 1px solid var(--rule); }
+.rules li:last-child { border-bottom: 1px solid var(--rule); }
+.rules li::before { content: counter(r); font-weight: 700; color: var(--muted); font-size: .95rem; padding-top: 3px; }
+.rules .rule { margin-top: 8px; color: var(--ink); }
+.rules .eg { margin-top: 4px; font-size: .9rem; color: var(--muted); }
+.rules-head { font-size: .9rem; color: var(--muted); margin-bottom: 8px; }
+.axes { margin-top: clamp(56px, 7vw, 80px); display: grid; grid-template-columns: minmax(0, 1fr); gap: 32px; align-items: start; }
+@media (min-width: 1000px) { .axes { grid-template-columns: minmax(0, .85fr) minmax(0, 1.15fr); gap: 64px; } }
+.matrix { width: 100%; border-collapse: collapse; font-size: .875rem; background: var(--surface); }
+.matrix caption { text-align: left; font-size: .875rem; color: var(--muted); padding: 12px 12px 10px; }
+.matrix tr > :first-child { border-left: 0; }
+.matrix tr > :last-child { border-right: 0; }
+.matrix tbody tr:last-child > * { border-bottom: 0; }
+.matrix th, .matrix td { border: 1px solid var(--rule); padding: 10px 8px; text-align: center; vertical-align: middle; }
+.matrix thead th { font-weight: 650; }
+.matrix thead .sev { flex-direction: column; gap: 4px; font-size: .8125rem; }
+.matrix tbody th { text-align: left; font-weight: 600; }
+.matrix tbody th .ev { font-size: .8125rem; white-space: normal; }
+.matrix td.yes { color: var(--ink-2); }
+.matrix td.no { color: var(--ink); font-weight: 700; background-image: repeating-linear-gradient(135deg, transparent 0 6px, var(--surface-2) 6px 12px); }
+.matrix td .icon { width: 14px; height: 14px; vertical-align: -2px; margin-right: 4px; }
+.matrix td.yes .icon { color: var(--ev-confirmed); }
+.matrix td.no .icon { color: var(--sev-critical); }
+@media (max-width: 520px) {
+  .matrix { font-size: .75rem; }
+  .matrix th, .matrix td { padding: 8px 4px; }
+  .matrix thead .sev { font-size: .6875rem; }
+  .matrix tbody th .ev { font-size: .6875rem; gap: 4px; padding: 2px 6px 2px 4px; }
+  .matrix tbody th .ev .icon { width: 12px; height: 12px; }
+  .matrix td .icon { display: none; }
+}
+
+/* ---------- World state ---------- */
+.timeline-fig { background: var(--surface); border: 1px solid var(--rule); border-radius: var(--radius); padding: clamp(16px, 2.4vw, 24px); }
+.timeline-fig__head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px 16px; margin-bottom: 14px; }
+.timeline-fig__head h3 { font-size: 1.05rem; }
+.timeline-fig__head p { font-size: .875rem; color: var(--muted); }
+.timeline-svg { display: none; }
+@media (min-width: 700px) { .timeline-svg { display: block; width: 100%; height: auto; margin-bottom: 18px; } }
+.tl text { font-family: var(--sans); }
+.tl__label { font-size: 13px; font-weight: 650; fill: var(--ink); }
+.tl__sub { font-size: 11.5px; fill: var(--muted); }
+.tl__axis { stroke: var(--rule-strong); stroke-width: 1.5; }
+.tl__tick { stroke: var(--rule-strong); stroke-width: 1.2; }
+.tl__month { font-size: 11.5px; fill: var(--muted); }
+.tl__bracket { fill: none; stroke: var(--ink-2); stroke-width: 1.5; }
+.tl__v2 { fill: var(--hl); stroke: var(--ink); stroke-width: 1.4; }
+.tl__cap { fill: var(--surface); stroke: var(--ink-2); stroke-width: 1.6; }
+.tl__x { stroke: var(--muted); stroke-width: 1.6; stroke-linecap: round; }
+.tl__base { fill: var(--ink); }
+.tl__live { fill: var(--ink-2); }
+.tl__change { fill: var(--hl); stroke: var(--ink); stroke-width: 1.4; }
+.table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; border: 1px solid var(--rule); border-radius: 10px; background: var(--surface); }
+.table-scroll:focus-visible { outline-offset: 2px; }
+.ledger { width: 100%; min-width: 640px; border-collapse: collapse; font-size: .875rem; }
+.ledger caption { text-align: left; padding: 12px 14px 0; font-weight: 650; color: var(--ink); }
+.ledger th, .ledger td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+.ledger thead th { font-size: .8125rem; color: var(--muted); font-weight: 650; }
+.ledger tbody tr:last-child td, .ledger tbody tr:last-child th { border-bottom: 0; }
+.ledger .new td, .ledger .new th { background: var(--paper); }
+.times { display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px; margin-top: 32px; }
+@media (min-width: 900px) { .times { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 40px; } }
+.times > div { border-top: 1px solid var(--rule-strong); padding-top: 14px; }
+.times h3 { font-size: 1.05rem; margin-bottom: 6px; }
+.times p { color: var(--ink-2); font-size: .975rem; }
+.vs { margin-top: clamp(56px, 7vw, 80px); }
+.vs-table { width: 100%; min-width: 660px; border-collapse: collapse; font-size: .9rem; }
+.vs-table caption { text-align: left; padding: 14px 14px 4px; font-weight: 650; }
+.vs-table th, .vs-table td { text-align: left; padding: 11px 14px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+.vs-table thead th { font-size: .8125rem; color: var(--muted); font-weight: 650; }
+.vs-table tbody th { font-weight: 650; color: var(--ink); width: 24%; }
+.vs-table td { color: var(--ink-2); }
+.vs-table .us { background: var(--paper); color: var(--ink); font-weight: 600; }
+.vs-table tbody tr:last-child > * { border-bottom: 0; }
+.analogy { margin-top: 24px; font-family: var(--serif); font-size: clamp(1.25rem, 1.1rem + .6vw, 1.55rem); line-height: 1.4; max-width: 46ch; }
+
+/* ---------- Domains ---------- */
+.domains { display: grid; grid-template-columns: minmax(0, 1fr); gap: 28px; }
+@media (min-width: 960px) { .domains { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0; } }
+.domain { padding: 4px 0 0; border-top: 2px solid var(--ink); }
+@media (min-width: 960px) { .domain { padding: 4px 28px 0; border-top: 0; border-left: 1px solid var(--rule-strong); } .domain:first-child { padding-left: 0; border-left: 0; } }
+.domain h3 { font-family: var(--serif); font-weight: 500; font-size: 1.6rem; margin-top: 12px; }
+.domain .dm { color: var(--muted); font-size: .9rem; margin-bottom: 14px; }
+.domain dl { display: grid; gap: 12px; }
+.domain dt { font-size: .8125rem; font-weight: 700; color: var(--ink); }
+.domain dd { font-size: .95rem; color: var(--ink-2); }
+.domains-note { margin-top: 28px; }
+
+/* ---------- Who ---------- */
+.icp { display: grid; grid-template-columns: minmax(0, 1fr); gap: 32px; margin-bottom: clamp(48px, 6vw, 72px); }
+@media (min-width: 960px) { .icp { grid-template-columns: minmax(0, 1.2fr) minmax(0, .8fr); gap: 56px; } }
+.icp__box { border: 1px solid var(--rule); border-radius: var(--radius); background: var(--surface); padding: clamp(18px, 2.6vw, 28px); }
+.icp__box h3, .icp__exp h3 { font-family: var(--serif); font-weight: 500; font-size: 1.4rem; margin-bottom: 4px; }
+.icp__box .hyp { font-size: .875rem; color: var(--muted); margin-bottom: 16px; }
+.icp dl { display: grid; }
+.icp dl > div { display: grid; grid-template-columns: minmax(0, 1fr); gap: 2px 20px; padding: 10px 0; border-bottom: 1px solid var(--rule); }
+.icp dl > div:last-child { border-bottom: 0; }
+@media (min-width: 560px) { .icp dl > div { grid-template-columns: 150px minmax(0, 1fr); } }
+.icp dt { font-weight: 650; font-size: .9rem; }
+.icp dd { color: var(--ink-2); font-size: .95rem; }
+.icp__exp ul { list-style: none; display: grid; gap: 14px; margin-top: 12px; }
+.icp__exp li { color: var(--ink-2); font-size: .95rem; padding-left: 16px; border-left: 2px solid var(--rule-strong); }
+.icp__exp li strong { color: var(--ink); display: block; }
+.personas { display: grid; grid-template-columns: minmax(0, 1fr); gap: 36px; }
+@media (min-width: 960px) { .personas { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 40px; } }
+.persona h3 { font-family: var(--serif); font-weight: 500; font-size: 1.45rem; line-height: 1.2; margin-bottom: 6px; }
+.persona .role { color: var(--muted); font-size: .9rem; margin-bottom: 14px; }
+.persona dl { display: grid; gap: 10px; }
+.persona dt { font-size: .8125rem; font-weight: 700; }
+.persona dd { color: var(--ink-2); font-size: .95rem; }
+
+/* ---------- Jobs ---------- */
+.core-job { border-left: 4px solid var(--ink); padding: 4px 0 4px clamp(16px, 3vw, 28px); margin-bottom: clamp(40px, 5vw, 60px); max-width: 60rem; }
+.core-job blockquote { font-family: var(--serif); font-size: clamp(1.35rem, 1.1rem + 1.1vw, 1.95rem); line-height: 1.3; }
+.core-job .dims { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px 28px; margin-top: 18px; font-size: .95rem; color: var(--ink-2); }
+@media (min-width: 900px) { .core-job .dims { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.core-job .dims b { color: var(--ink); display: block; font-size: .8125rem; }
+.jobs { list-style: none; display: grid; grid-template-columns: minmax(0, 1fr); gap: 28px 36px; }
+@media (min-width: 720px) { .jobs { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (min-width: 1100px) { .jobs { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.jobs li { border-top: 1px solid var(--rule-strong); padding-top: 14px; }
+.jobs h3 { font-family: var(--serif); font-weight: 500; font-size: 1.25rem; line-height: 1.25; margin-bottom: 8px; }
+.jobs p { font-size: .95rem; color: var(--ink-2); }
+.jobs .serves { margin-top: 8px; font-size: .875rem; color: var(--ink); }
+.jobs .serves span { color: var(--muted); }
+
+/* ---------- Compare ---------- */
+.cats { display: grid; grid-template-columns: minmax(0, 1fr); gap: 28px 36px; margin-bottom: clamp(44px, 6vw, 64px); }
+@media (min-width: 720px) { .cats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (min-width: 1100px) { .cats { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.cat { border-top: 1px solid var(--rule-strong); padding-top: 14px; }
+.cat h3 { font-size: 1.05rem; }
+.cat .eg { font-size: .8125rem; color: var(--muted); margin-bottom: 10px; }
+.cat dl { display: grid; gap: 8px; }
+.cat dt { font-size: .8125rem; font-weight: 700; }
+.cat dd { font-size: .925rem; color: var(--ink-2); }
+.cmp { width: 100%; min-width: 980px; border-collapse: separate; border-spacing: 0; font-size: .8125rem; }
+.cmp caption { text-align: left; padding: 14px 14px 6px; font-size: .875rem; color: var(--muted); }
+.cmp th, .cmp td { padding: 10px 10px; border-bottom: 1px solid var(--rule); text-align: left; vertical-align: top; background: var(--surface); }
+.cmp thead th { font-weight: 700; color: var(--ink); font-size: .8125rem; vertical-align: bottom; }
+.cmp tbody th { font-weight: 650; color: var(--ink); min-width: 180px; }
+@media (max-width: 600px) { .cmp tbody th { min-width: 128px; } }
+.cmp th:first-child { position: sticky; left: 0; z-index: 1; box-shadow: 1px 0 0 var(--rule); }
+.cmp .us { background: var(--accent-soft); color: var(--ink); font-weight: 650; }
+.cmp thead .us { color: var(--accent); }
+.cmp tbody tr:last-child > * { border-bottom: 0; }
+.v { display: inline-flex; gap: 6px; align-items: baseline; color: var(--ink-2); }
+.v::before { content: ""; flex: none; width: 9px; height: 9px; border-radius: 50%; border: 1.5px solid var(--ink-2); transform: translateY(1px); }
+.v--yes::before { background: var(--ink-2); }
+.v--part::before { background: linear-gradient(90deg, var(--ink-2) 50%, transparent 50%); }
+.v--na::before { border-style: dotted; }
+.us .v { color: var(--ink); }
+.us .v::before { border-color: var(--accent); }
+.us .v--yes::before { background: var(--accent); }
+.swipe { font-size: .8125rem; color: var(--muted); margin-top: 10px; }
+@media (min-width: 1100px) { .swipe { display: none; } }
+.not-for { margin-top: 32px; max-width: 72ch; }
+.not-for h3 { font-size: 1.05rem; margin-bottom: 8px; }
+.not-for ul { list-style: none; display: grid; gap: 6px; color: var(--ink-2); font-size: .95rem; }
+
+/* ---------- Trust ---------- */
+.autonomy { display: grid; grid-template-columns: minmax(0, 1fr); gap: 28px; margin-bottom: clamp(44px, 6vw, 64px); }
+@media (min-width: 900px) { .autonomy { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0; } }
+.autonomy > div { padding: 18px 0 0; border-top: 3px solid var(--rule-strong); }
+@media (min-width: 900px) { .autonomy > div { padding: 18px 28px 0; } .autonomy > div:first-child { padding-left: 0; } }
+.autonomy > div.col-self { border-top-color: var(--accent); }
+.autonomy > div.col-ask { border-top-color: var(--ink); }
+.autonomy > div.col-never { border-top-color: var(--sev-critical); }
+.autonomy h3 { font-family: var(--serif); font-weight: 500; font-size: 1.45rem; margin-bottom: 12px; }
+.autonomy ul { list-style: none; display: grid; gap: 8px; }
+.autonomy li { font-size: .95rem; color: var(--ink-2); padding-left: 14px; position: relative; }
+.autonomy li::before { content: ""; position: absolute; left: 0; top: .65em; width: 6px; height: 6px; border-radius: 50%; background: var(--rule-strong); }
+.mechs { list-style: none; display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px 32px; }
+@media (min-width: 720px) { .mechs { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (min-width: 1100px) { .mechs { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.mechs h3 { font-size: 1rem; margin-bottom: 6px; }
+.mechs p { font-size: .925rem; color: var(--ink-2); }
+
+/* ---------- Not / Roadmap / FAQ ---------- */
+.nots { list-style: none; display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px 40px; }
+@media (min-width: 800px) { .nots { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.nots li { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 10px; color: var(--ink-2); }
+.nots li .icon { margin-top: 5px; color: var(--muted); }
+.nots strong { color: var(--ink); }
+.is-line { margin-top: 32px; font-family: var(--serif); font-size: clamp(1.25rem, 1.1rem + .6vw, 1.55rem); line-height: 1.4; max-width: 50ch; }
+.roadmap { display: grid; grid-template-columns: minmax(0, 1fr); gap: 28px; }
+@media (min-width: 960px) { .roadmap { grid-template-columns: 1.15fr 1fr .85fr; gap: 0; } }
+.roadmap > div { border-top: 3px solid var(--rule-strong); padding-top: 16px; }
+@media (min-width: 960px) { .roadmap > div { padding: 16px 28px 0; } .roadmap > div:first-child { padding-left: 0; } }
+.roadmap > div.now { border-top-color: var(--ink); }
+.roadmap h3 { font-family: var(--serif); font-weight: 500; font-size: 1.45rem; }
+.roadmap .when { font-size: .875rem; color: var(--muted); margin-bottom: 12px; }
+.roadmap ul { list-style: none; display: grid; gap: 8px; }
+.roadmap li { font-size: .925rem; color: var(--ink-2); padding-left: 14px; position: relative; }
+.roadmap li::before { content: ""; position: absolute; left: 0; top: .65em; width: 6px; height: 6px; border-radius: 50%; background: var(--ink-2); }
+.roadmap .later li::before { background: transparent; border: 1.5px solid var(--ink-2); }
+.never-line { margin-top: 28px; font-size: .95rem; color: var(--ink-2); }
+.never-line strong { color: var(--ink); }
+.faq { max-width: 78ch; border-top: 1px solid var(--rule); }
+.faq details { border-bottom: 1px solid var(--rule); }
+.faq summary {
+  list-style: none; cursor: pointer; display: grid; grid-template-columns: minmax(0, 1fr) 24px; gap: 16px; align-items: center;
+  padding: 18px 0; font-weight: 650; font-size: 1.05rem; color: var(--ink);
+}
+.faq summary::-webkit-details-marker { display: none; }
+.faq summary::after {
+  content: ""; width: 12px; height: 12px; justify-self: end; margin-right: 6px;
+  border-right: 2px solid var(--ink-2); border-bottom: 2px solid var(--ink-2); transform: rotate(45deg) translate(-2px, -2px);
+  transition: transform .2s ease;
+}
+.faq details[open] summary::after { transform: rotate(-135deg) translate(-2px, -2px); }
+@media (prefers-reduced-motion: reduce) { .faq summary::after { transition: none; } }
+.faq .answer { padding: 0 0 20px; color: var(--ink-2); display: grid; gap: 10px; }
+
+/* ---------- Footer ---------- */
+.site-footer { padding-block: 48px 64px; border-top: 1px solid var(--rule); background: var(--surface); }
+.footer-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px; }
+@media (min-width: 900px) { .footer-grid { grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr); gap: 56px; } }
+.site-footer p { font-size: .875rem; color: var(--muted); }
+.site-footer p + p { margin-top: 8px; }
+.site-footer .brand { font-size: 1.15rem; margin-bottom: 8px; }
+
+/* ---------- Print ---------- */
+@media print {
+  :root {
+    --paper: #FFFFFF; --surface: #FFFFFF; --surface-2: #F1F2F6; --ink: #111427; --ink-2: #33384F; --muted: #555B75;
+    --rule: #D5D8E2; --rule-strong: #A9AEC4; --accent: #2E3DC8; --accent-soft: #E7E9FB; --on-ink: #FFFFFF;
+    --hl: #FFE15A; --hl-ink: #1A1600;
+    --ev-confirmed: #17693C; --ev-confirmed-bg: #DDF2E5; --ev-corroborated: #0B6468; --ev-corroborated-bg: #D5EFEF;
+    --ev-single: #7F5300; --ev-single-bg: #FBEFCB; --ev-conflicting: #7B2A9C; --ev-conflicting-bg: #F1E2F8;
+    --ev-unverified: #4B5366; --ev-unverified-bg: #E5E8EF;
+    --sev-critical: #B42318; --sev-high: #BF4209; --sev-medium: #8F6400; --sev-low: #4A5873;
+    --shadow: none;
+  }
+  html { font-size: 11pt; }
+  body { background: #FFFFFF; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .site-header, .skip, .hero__actions, .swipe { display: none !important; }
+  .section { padding-block: 28px; break-inside: auto; }
+  .section--surface { border: 0; }
+  .lens, .report, .messy, .funnel__fig, .timeline-fig, .icp__box, figure, tr, .rules li, .jobs li, .cat, .persona, .domain { break-inside: avoid; }
+  h2, h3, .section__head, .sub-title, .phase-title { break-after: avoid; }
+  .funnel > .section__intro, .vs > .section__intro { break-after: avoid; }
+  .table-scroll { overflow: visible; border: 0; }
+  .cmp, .ledger, .vs-table { min-width: 0; }
+  .cmp th:first-child { position: static; }
+  .ring-fig, .timeline-svg { display: block; }
+  details::details-content { content-visibility: visible; height: auto; }
+  .faq summary::after { display: none; }
+  a { color: inherit; text-decoration: none; }
+}
+</style>
+</head>
+<body id="top">
+<a class="skip" href="#main">Skip to content</a>
+
+<svg class="sprite" aria-hidden="true" focusable="false">
+  <defs>
+    <symbol id="i-confirmed" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.4" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M5.1 8.3l2 2 3.8-4.3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-corroborated" viewBox="0 0 16 16"><path d="M1.6 8.6l2.6 2.6 5-5.7M7.6 11.1l.2.1 5.2-5.9" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-single" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.4" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="8" cy="8" r="2.3" fill="currentColor"/></symbol>
+    <symbol id="i-conflicting" viewBox="0 0 16 16"><path d="M2.2 5.4h10.4M10.3 3l2.4 2.4-2.4 2.4M13.8 10.6H3.4M5.7 8.2l-2.4 2.4L5.7 13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-unverified" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-dasharray="2.4 2.1"/><path d="M6.4 6.5a1.7 1.7 0 1 1 2.4 1.6c-.5.2-.8.6-.8 1.1" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="8" cy="11.2" r=".9" fill="currentColor"/></symbol>
+    <symbol id="i-cross" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.4" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M5.8 5.8l4.4 4.4M10.2 5.8l-4.4 4.4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></symbol>
+    <symbol id="i-tick" viewBox="0 0 16 16"><path d="M3.2 8.4l3 3 6.6-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-no" viewBox="0 0 16 16"><path d="M4.2 4.2l7.6 7.6M11.8 4.2l-7.6 7.6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="i-dash" viewBox="0 0 16 16"><path d="M3.5 8h9" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="i-loop" viewBox="0 0 24 24"><path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M17.8 2.8v4.3h-4.3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  </defs>
+</svg>
+
+<header class="site-header">
+  <div class="container site-header__inner">
+    <a class="brand" href="#top">
+      <svg viewBox="0 0 32 32" aria-hidden="true" focusable="false">
+        <path class="mark-noise" d="M1 16.8l1.6-2.3 1.5 3.4 1.4-2.4"/>
+        <path class="mark-noise" d="M26.5 15.5l1.4 2.4 1.5-3.4 1.6 2.3"/>
+        <circle class="mark-lens" cx="16" cy="16" r="10.4"/>
+        <path class="mark-signal" d="M9.6 18.2h3.3l3.1-7.6 3.1 7.6h3.3"/>
+      </svg>
+      <span>SignalLens</span>
+    </a>
+    <nav class="site-nav" aria-label="Sections">
+      <a href="#problem">Problem</a>
+      <a href="#how">How it works</a>
+      <a href="#card">The card</a>
+      <a href="#evidence">Evidence</a>
+      <a href="#memory">Memory</a>
+      <a href="#who">Who it’s for</a>
+      <a href="#compare">Compare</a>
+      <a href="#trust">Trust</a>
+      <a href="#roadmap">Roadmap</a>
+      <a href="#faq">FAQ</a>
+    </nav>
+    <details class="toc-mobile">
+      <summary>Contents</summary>
+      <nav aria-label="Sections">
+        <a href="#problem">The problem</a>
+        <a href="#how">How it works</a>
+        <a href="#card">The intelligence card</a>
+        <a href="#evidence">Evidence statuses</a>
+        <a href="#memory">The world state</a>
+        <a href="#domains">Any market</a>
+        <a href="#who">Who it’s for</a>
+        <a href="#jobs">Jobs to be done</a>
+        <a href="#compare">How it’s different</a>
+        <a href="#trust">Trust and safety</a>
+        <a href="#roadmap">Roadmap</a>
+        <a href="#faq">FAQ</a>
+      </nav>
+    </details>
+  </div>
+</header>
+
+<main id="main">
+
+<!-- ================= HERO ================= -->
+<section class="hero" aria-labelledby="hero-title">
+  <div class="container hero__grid">
+    <div>
+      <h1 class="hero__title" id="hero-title">Most of what changes doesn’t matter. SignalLens finds what does, and proves it.</h1>
+      <p class="hero__lede">An always-on analyst that tells a business what materially changed in its external environment, whether it is actually true, why it matters to that business, and who needs to know.</p>
+      <p class="hero__support">Tell it who to watch — “I want to monitor Razorpay” — and approve its plan. It then checks, filters, investigates and routes on its own, with quoted evidence behind every claim.</p>
+      <div class="hero__actions">
+        <a class="btn btn--primary" href="#how">See how it works</a>
+        <a class="btn btn--ghost" href="#card">See an intelligence card</a>
+      </div>
+    </div>
+
+    <figure class="lens" aria-labelledby="lens-cap">
+      <div class="lens__head">
+        <p class="lens__src">razorpay.com/pricing<small>Changes found in one illustrative week</small></p>
+        <span class="illus">Illustration</span>
+      </div>
+      <ol class="lens__list">
+        <li class="lens__item is-noise">
+          <span class="lens__change"><span class="strike">Footer timestamp changed</span></span>
+          <span class="lens__why">Ignored: volatile token</span>
+        </li>
+        <li class="lens__item is-noise">
+          <span class="lens__change"><span class="strike">“2 days ago” became “3 days ago”</span></span>
+          <span class="lens__why">Ignored: relative date</span>
+        </li>
+        <li class="lens__item is-noise">
+          <span class="lens__change"><span class="strike">Cookie banner reworded</span></span>
+          <span class="lens__why">Ignored: boilerplate</span>
+        </li>
+        <li class="lens__item is-noise">
+          <span class="lens__change"><span class="strike">Settlement FAQ reworded</span></span>
+          <span class="lens__why">Filtered: low materiality</span>
+        </li>
+        <li class="lens__item is-signal">
+          <span class="lens__change">New line: <span class="mark">“0%* platform fees for first 90 days”</span></span>
+          <span class="lens__why">Material: investigated</span>
+        </li>
+      </ol>
+      <div class="lens__result">
+        <span class="ev ev--confirmed"><svg class="icon" aria-hidden="true"><use href="#i-confirmed"/></svg>Confirmed</span>
+        <span class="sev sev--high"><span class="sev__bars" aria-hidden="true"><i></i><i></i><i></i><i></i></span>Severity high</span>
+        <span class="route">Sent to Product, Sales &amp; BD and Strategy</span>
+      </div>
+      <figcaption class="lens__cap" id="lens-cap">Four changes are noise and stop at a free test. The fifth is investigated, confirmed from Razorpay’s own page, rated high for a fictional competitor, Orbit Payments, and routed. The offer text is quoted from razorpay.com/pricing as of September 2026; everything else here is hypothetical.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<!-- ================= FOUR QUESTIONS ================= -->
+<section class="section section--surface" id="questions" aria-labelledby="questions-title">
+  <div class="container">
+    <div class="section__head">
+      <h2 class="section__title" id="questions-title">Four questions, answered in order</h2>
+      <p class="section__intro">Every part of the product exists to answer one of them.</p>
+    </div>
+    <ol class="questions">
+      <li>
+        <h3>What materially changed?</h3>
+        <p>Cheap tests remove the noise first — timestamps, footers, cookie banners. Only real changes reach an AI model, and only material ones are investigated.</p>
+        <p class="q-name">Materiality filter</p>
+      </li>
+      <li>
+        <h3>Is it actually true?</h3>
+        <p>An agent collects quotes from the pages it opened. Fixed rules — not the model’s opinion — decide how sure we are.</p>
+        <p class="q-name">Evidence status</p>
+      </li>
+      <li>
+        <h3>Why does it matter to us?</h3>
+        <p>An assessment written for your company, from your Company Profile, with its assumptions stated and clearly labelled.</p>
+        <p class="q-name">Agent assessment</p>
+      </li>
+      <li>
+        <h3>Who needs to know?</h3>
+        <p>The team that owns the topic — immediately if it is urgent, otherwise in the daily digest.</p>
+        <p class="q-name">Routing</p>
+      </li>
+    </ol>
+  </div>
+</section>
+
+<!-- ================= PROBLEM ================= -->
+<section class="section" id="problem" aria-labelledby="problem-title">
+  <div class="container">
+    <div class="section__head">
+      <h2 class="section__title" id="problem-title">Finding information isn’t the problem</h2>
+      <p class="section__intro">Search engines and AI assistants will find almost anything — if you know what to ask, and when. Teams struggle with everything around the search.</p>
+    </div>
+    <div class="problem-grid">
+      <ul class="hard-list">
+        <li><div><strong>Knowing that something changed.</strong><span class="t">You can’t search for a change you don’t know happened.</span></div></li>
+        <li><div><strong>Knowing whether it’s true.</strong><span class="t">A rumour isn’t an announcement. Ten sites carrying one wire story are one source, not ten.</span></div></li>
+        <li><div><strong>Knowing whether it matters to us.</strong><span class="t">The same price cut is a threat to a rival and a bargaining chip for a customer.</span></div></li>
+        <li><div><strong>Reaching the right person in time.</strong><span class="t">A regulator’s circular belongs with Compliance today, not in next week’s summary.</span></div></li>
+        <li><div><strong>Remembering.</strong><span class="t">What was the price before? When did it change? Did we already know?</span></div></li>
+      </ul>
+
+      <figure class="messy" aria-labelledby="messy-title">
+        <div class="messy__head">
+          <h3 id="messy-title">Real pricing is messy</h3>
+          <span class="illus">Real quotes</span>
+        </div>
+        <div class="page-frag">
+          <div class="page-frag__row"><span class="page-frag__q big">2%</span><span class="page-frag__a">The headline fee</span></div>
+          <div class="page-frag__row"><span class="page-frag__q">0%* platform fees for first 90 days</span><span class="page-frag__a">An offer, with an asterisk</span></div>
+          <div class="page-frag__row"><span class="page-frag__q small">Platform fee 2.15% + GST</span><span class="page-frag__a">A footnote: which transactions does it cover?</span></div>
+        </div>
+        <ul class="readings" aria-label="Three readings of the same page">
+          <li class="wrong"><svg class="icon" aria-hidden="true"><use href="#i-cross"/></svg><span><span class="visually-hidden">Wrong: </span>“Razorpay’s pricing is now 0%.”</span></li>
+          <li class="wrong"><svg class="icon" aria-hidden="true"><use href="#i-cross"/></svg><span><span class="visually-hidden">Wrong: </span>“Razorpay charges 2.15%.”</span></li>
+          <li class="right"><svg class="icon" aria-hidden="true"><use href="#i-tick"/></svg><span><span class="visually-hidden">Careful: </span>The headline is 2%. There is a 90-day, 0% platform-fee offer with conditions. A 2.15% + GST footnote needs its scope checked before anyone acts on it.</span></li>
+        </ul>
+        <figcaption class="messy__src">Quoted from Razorpay’s public pricing page as it appeared in September 2026.</figcaption>
+      </figure>
+    </div>
+
+    <div class="three-col">
+      <div>
+        <h3>Today, it’s one person and a spreadsheet</h3>
+        <p>Bookmarks checked by hand, news alerts full of duplicates, evidence in screenshots, history in someone’s head. It’s the first job dropped when a launch gets busy — and when that person is away, nobody is watching.</p>
+      </div>
+      <div>
+        <h3>Alert fatigue is the other failure</h3>
+        <p>Tools that alert on every change create a flood. People mute the channel, then miss the one change that mattered. The real test is how much a tool correctly throws away — and whether it shows you what, and why.</p>
+      </div>
+      <div>
+        <h3>Why now</h3>
+        <ul>
+          <li>AI agents can now plan research, use tools and check results — an analyst’s legwork.</li>
+          <li>Trust needs evidence and memory, which generic assistants don’t keep.</li>
+          <li>It’s economical when AI is used sparingly: plain code for most work, models only where judgment is needed.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= HOW IT WORKS ================= -->
+<section class="section section--surface" id="how" aria-labelledby="how-title">
+  <div class="container">
+    <div class="section__head">
+      <h2 class="section__title" id="how-title">One loop: set up once, then it runs on its own</h2>
+      <p class="section__intro">Four steps happen once, with you. Seven then run continuously and hand you only what matters. Every step reads from and writes to the world state — SignalLens’s memory.</p>
+    </div>
+
+    <p class="example-note"><span><strong>Running example.</strong> Orbit Payments (fictional) runs a payment gateway for small merchants in India. Razorpay is its main competitor. Orbit’s strategy lead types: “I want to monitor Razorpay — pricing, products, partnerships and regulatory changes.”</span></p>
+
+    <h3 class="phase-title">Once, at set-up</h3>
+    <ol class="rail rail--setup">
+      <li>
+        <span class="mk mk--agent" aria-hidden="true">1</span>
+        <div>
+          <h4>Understand</h4>
+          <p class="who">Agent loop (Planner)</p>
+          <p class="text">Researches the request: which Razorpay, which industry, which regulators and competitors matter.</p>
+        </div>
+      </li>
+      <li>
+        <span class="mk mk--agent" aria-hidden="true">2</span>
+        <div>
+          <h4>Plan</h4>
+          <p class="who">Agent loop, checked by code</p>
+          <p class="text">Proposes entities, topics, facts to track and sources — each with a reason and a live check: reachable, allowed, readable.</p>
+        </div>
+      </li>
+      <li>
+        <span class="mk mk--you" aria-hidden="true">3</span>
+        <div>
+          <h4>Approve</h4>
+          <p class="who">You decide</p>
+          <p class="text">You edit and approve the plan. It never changes what it watches on its own.</p>
+        </div>
+      </li>
+      <li>
+        <span class="mk mk--model" aria-hidden="true">4</span>
+        <div>
+          <h4>Baseline and history</h4>
+          <p class="who">Code and a fast model</p>
+          <p class="text">Records today’s state without raising alerts, and replays about a year of monthly web-archive captures as history.</p>
+        </div>
+      </li>
+    </ol>
+
+    <h3 class="phase-title then">Then, continuously</h3>
+
+    <div class="how-grid">
+      <figure class="ring-fig">
+        <svg class="ring" viewBox="0 0 460 400" role="img" aria-label="The continuous loop: Monitor, Filter, Investigate, Verify, Assess impact, Route and Learn, then back to Monitor. The world state sits at the centre, read and written by every step.">
+          <defs>
+            <marker id="ring-arrow" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path class="ring__head" d="M0 0L10 5L0 10z"/>
+            </marker>
+          </defs>
+          <circle class="ring__track" cx="230" cy="200" r="118"/>
+          <path class="ring__arc" d="M244.38 82.88A118 118 0 0 1 309.61 112.9" marker-end="url(#ring-arrow)"/>
+          <path class="ring__arc" d="M330.54 138.22A118 118 0 0 1 347.73 207.94" marker-end="url(#ring-arrow)"/>
+          <path class="ring__arc" d="M340.98 240.08A118 118 0 0 1 297.2 297" marker-end="url(#ring-arrow)"/>
+          <path class="ring__arc" d="M267.86 311.76A118 118 0 0 1 196.07 313.02" marker-end="url(#ring-arrow)"/>
+          <path class="ring__arc" d="M166.23 299.28A118 118 0 0 1 120.48 243.93" marker-end="url(#ring-arrow)"/>
+          <path class="ring__arc" d="M112.62 212.04A118 118 0 0 1 127.36 141.77" marker-end="url(#ring-arrow)"/>
+          <path class="ring__arc" d="M147.42 115.71A118 118 0 0 1 211.54 83.45" marker-end="url(#ring-arrow)"/>
+
+          <circle class="st--code" cx="230" cy="82" r="8"/>
+          <circle class="st--model" cx="322.3" cy="126.4" r="8"/>
+          <circle class="st-ring" cx="345" cy="226.3" r="12"/>
+          <circle class="st--model" cx="345" cy="226.3" r="8"/>
+          <circle class="st--code" cx="281.2" cy="306.3" r="8"/>
+          <circle class="st--model" cx="178.8" cy="306.3" r="8"/>
+          <circle class="st--code" cx="115" cy="226.3" r="8"/>
+          <rect class="st--you" x="129.7" y="118.4" width="16" height="16" rx="3"/>
+
+          <text class="ring__name" x="230" y="50" text-anchor="middle">5 Monitor</text>
+          <text class="ring__who" x="230" y="65" text-anchor="middle">rules in code</text>
+          <text class="ring__name" x="338" y="118">6 Filter</text>
+          <text class="ring__who" x="338" y="133">code + fast model</text>
+          <text class="ring__name" x="364" y="222">7 Investigate</text>
+          <text class="ring__who" x="364" y="237">agent loop</text>
+          <text class="ring__name" x="281.2" y="336" text-anchor="middle">8 Verify</text>
+          <text class="ring__who" x="281.2" y="351" text-anchor="middle">rules in code</text>
+          <text class="ring__name" x="170" y="336" text-anchor="middle">9 Assess impact</text>
+          <text class="ring__who" x="170" y="351" text-anchor="middle">one model call</text>
+          <text class="ring__name" x="99" y="222" text-anchor="end">10 Route</text>
+          <text class="ring__who" x="99" y="237" text-anchor="end">rules in code</text>
+          <text class="ring__name" x="118" y="118" text-anchor="end">11 Learn</text>
+          <text class="ring__who" x="118" y="133" text-anchor="end">you + rules</text>
+
+          <rect class="ring__ledger" x="213" y="148" width="34" height="27" rx="3"/>
+          <line class="ring__ledger-line" x1="219" y1="156" x2="241" y2="156"/>
+          <line class="ring__ledger-line" x1="219" y1="162" x2="241" y2="162"/>
+          <line class="ring__ledger-line" x1="219" y1="168" x2="233" y2="168"/>
+          <text class="ring__center-title" x="230" y="200" text-anchor="middle">World state</text>
+          <text class="ring__center-sub" x="230" y="219" text-anchor="middle">versioned memory,</text>
+          <text class="ring__center-sub" x="230" y="234" text-anchor="middle">read and written by every step</text>
+        </svg>
+        <figcaption>The continuous loop around its memory.</figcaption>
+      </figure>
+
+      <div>
+        <ol class="rail" start="5">
+          <li>
+            <span class="mk mk--code" aria-hidden="true">5</span>
+            <div>
+              <h4>Monitor</h4>
+              <p class="who">Rules in code</p>
+              <p class="text">Checks each source on its own schedule, politely. Error pages and bot challenges are classified and never compared.</p>
+            </div>
+          </li>
+          <li>
+            <span class="mk mk--model" aria-hidden="true">6</span>
+            <div>
+              <h4>Filter</h4>
+              <p class="who">Code, then a fast model</p>
+              <p class="text">Removes noise with the cheapest test first. A changed timestamp stops here; a new offer line passes.</p>
+            </div>
+          </li>
+          <li>
+            <span class="mk mk--agent" aria-hidden="true">7</span>
+            <div>
+              <h4>Investigate</h4>
+              <p class="who">Agent loop (Verifier), with a hard budget</p>
+              <p class="text">Chooses its own searches and pages, and looks for confirmation and contradiction. Its tools are read-only.</p>
+            </div>
+          </li>
+          <li>
+            <span class="mk mk--code" aria-hidden="true">8</span>
+            <div>
+              <h4>Verify</h4>
+              <p class="who">Rules in code</p>
+              <p class="text">Every quote must appear word for word in a page actually fetched. Fixed rules set the evidence status.</p>
+            </div>
+          </li>
+          <li>
+            <span class="mk mk--model" aria-hidden="true">9</span>
+            <div>
+              <h4>Assess impact</h4>
+              <p class="who">One strong-model call, with guardrails</p>
+              <p class="text">Explains why it matters to Orbit, states its assumptions and proposes a severity that the rules can cap.</p>
+            </div>
+          </li>
+          <li>
+            <span class="mk mk--code" aria-hidden="true">10</span>
+            <div>
+              <h4>Route</h4>
+              <p class="who">Rules in code</p>
+              <p class="text">Sends the card to the teams that own the topic — now if critical or high, otherwise in the daily digest.</p>
+            </div>
+          </li>
+          <li>
+            <span class="mk mk--you" aria-hidden="true">11</span>
+            <div>
+              <h4>Learn</h4>
+              <p class="who">You, turned into rules</p>
+              <p class="text">Your feedback becomes visible, undoable rules. The world state records the new version of the fact.</p>
+            </div>
+          </li>
+        </ol>
+        <p class="loop-back"><svg aria-hidden="true"><use href="#i-loop"/></svg><span>Back to Monitor. The loop repeats for every source.</span></p>
+      </div>
+    </div>
+
+    <div class="legend" aria-label="Legend: who does each step">
+      <span><span class="mk mk--code" aria-hidden="true"></span>Rules in code</span>
+      <span><span class="mk mk--model" aria-hidden="true"></span>A single model call</span>
+      <span><span class="mk mk--agent" aria-hidden="true"></span>Agent loop</span>
+      <span><span class="mk mk--you" aria-hidden="true"></span>You decide</span>
+    </div>
+    <p class="ai-note"><strong>Two agent loops, not six chatbots.</strong> Only planning and investigating need an AI that chooses its own next step. Everything else is plain code or a single model call, which keeps SignalLens fast, cheap, predictable — and every step inspectable.</p>
+
+    <div class="funnel">
+      <h3 class="sub-title">The attention funnel</h3>
+      <p class="section__intro" style="margin-bottom:20px">Every check is counted, so you can see the noise removed on your behalf. Each dot below is one check in an illustrative week.</p>
+      <figure class="funnel__fig">
+        <svg viewBox="0 0 620 200" role="img" aria-label="Illustrative week: of 1,240 checks, 38 found a change, 6 were material and investigated, and 3 became immediate alerts.">
+          <defs>
+            <pattern id="dotgrid" width="10" height="10" patternUnits="userSpaceOnUse">
+              <circle class="dot-bg" cx="5" cy="5" r="1.7"/>
+            </pattern>
+          </defs>
+          <rect x="0" y="0" width="620" height="200" fill="url(#dotgrid)"/>
+          <g>
+            <circle class="dot-changed" cx="35" cy="25" r="2.9"/><circle class="dot-changed" cx="95" cy="145" r="2.9"/><circle class="dot-changed" cx="175" cy="175" r="2.9"/><circle class="dot-changed" cx="215" cy="95" r="2.9"/><circle class="dot-changed" cx="255" cy="15" r="2.9"/><circle class="dot-changed" cx="315" cy="65" r="2.9"/><circle class="dot-changed" cx="345" cy="185" r="2.9"/><circle class="dot-changed" cx="375" cy="35" r="2.9"/><circle class="dot-changed" cx="435" cy="155" r="2.9"/><circle class="dot-changed" cx="465" cy="75" r="2.9"/><circle class="dot-changed" cx="495" cy="25" r="2.9"/><circle class="dot-changed" cx="555" cy="85" r="2.9"/><circle class="dot-changed" cx="585" cy="165" r="2.9"/><circle class="dot-changed" cx="605" cy="45" r="2.9"/><circle class="dot-changed" cx="55" cy="95" r="2.9"/><circle class="dot-changed" cx="115" cy="65" r="2.9"/><circle class="dot-changed" cx="195" cy="135" r="2.9"/><circle class="dot-changed" cx="275" cy="185" r="2.9"/><circle class="dot-changed" cx="305" cy="155" r="2.9"/><circle class="dot-changed" cx="365" cy="115" r="2.9"/><circle class="dot-changed" cx="395" cy="5" r="2.9"/><circle class="dot-changed" cx="445" cy="45" r="2.9"/><circle class="dot-changed" cx="485" cy="175" r="2.9"/><circle class="dot-changed" cx="515" cy="85" r="2.9"/><circle class="dot-changed" cx="575" cy="115" r="2.9"/><circle class="dot-changed" cx="75" cy="185" r="2.9"/><circle class="dot-changed" cx="135" cy="115" r="2.9"/><circle class="dot-changed" cx="225" cy="165" r="2.9"/><circle class="dot-changed" cx="335" cy="25" r="2.9"/><circle class="dot-changed" cx="415" cy="135" r="2.9"/><circle class="dot-changed" cx="545" cy="35" r="2.9"/><circle class="dot-changed" cx="595" cy="195" r="2.9"/>
+            <circle class="dot-material" cx="145" cy="55" r="4.2"/><circle class="dot-material" cx="285" cy="125" r="4.2"/><circle class="dot-material" cx="405" cy="105" r="4.2"/><circle class="dot-material" cx="525" cy="135" r="4.2"/><circle class="dot-material" cx="235" cy="45" r="4.2"/><circle class="dot-material" cx="475" cy="125" r="4.2"/>
+            <circle class="dot-alert" cx="285" cy="125" r="8"/><circle class="dot-alert" cx="405" cy="105" r="8"/><circle class="dot-alert" cx="235" cy="45" r="8"/>
+          </g>
+        </svg>
+        <ul class="funnel__legend">
+          <li><svg viewBox="0 0 22 22" aria-hidden="true"><circle class="dot-bg" cx="11" cy="11" r="2.4"/></svg><span><b>1,240 checks</b>Scheduled looks at a source. Most end at a free test.</span></li>
+          <li><svg viewBox="0 0 22 22" aria-hidden="true"><circle class="dot-changed" cx="11" cy="11" r="3.6"/></svg><span><b>38 changes</b>Content differed after ignoring timestamps and other volatile text.</span></li>
+          <li><svg viewBox="0 0 22 22" aria-hidden="true"><circle class="dot-material" cx="11" cy="11" r="5"/></svg><span><b>6 material</b>Above the topic’s threshold, so investigated by the agent.</span></li>
+          <li><svg viewBox="0 0 22 22" aria-hidden="true"><circle class="dot-material" cx="11" cy="11" r="4"/><circle class="dot-alert" cx="11" cy="11" r="8.5"/></svg><span><b>3 alerts</b>Critical or high, so sent immediately. The rest waited for the digest or were dismissed.</span></li>
+        </ul>
+        <figcaption class="note funnel__cap">Illustrative figures, not measurements. Because most checks never reach an AI model, continuous monitoring stays cheap: cost follows how often things change, not how often they are checked.</figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<!-- ================= THE CARD ================= -->
+<section class="section" id="card" aria-labelledby="card-title">
+  <div class="container">
+    <div class="section__head">
+      <h2 class="section__title" id="card-title">The intelligence card</h2>
+      <p class="section__intro">Every material change becomes one card. Facts sit above the line; the agent’s assessment sits below it, labelled, with its assumptions. You can defend the first with evidence, and challenge the second on its assumptions.</p>
+    </div>
+
+    <div class="card-layout">
+      <figure class="report" aria-label="Illustrative intelligence card for a hypothetical Razorpay pricing change">
+        <div class="report__top">
+          <p class="crumbs"><span>Razorpay</span><span>Pricing &amp; fees</span></p>
+          <span class="chip">Pricing change</span>
+          <span class="illus">Illustration</span>
+        </div>
+        <h3 class="report__title">Razorpay pricing page adds a “0% platform fees for first 90 days” offer</h3>
+        <div class="report__status">
+          <div class="kv"><span class="kv__k">Severity <span class="pin" aria-hidden="true">3</span></span><span class="sev sev--high"><span class="sev__bars" aria-hidden="true"><i></i><i></i><i></i><i></i></span>High</span></div>
+          <div class="kv"><span class="kv__k">Evidence <span class="pin" aria-hidden="true">4</span></span><span><span class="ev ev--confirmed"><svg class="icon" aria-hidden="true"><use href="#i-confirmed"/></svg>Confirmed</span></span></div>
+          <div class="kv"><span class="kv__k">Detected <span class="pin" aria-hidden="true">6</span></span><span class="kv__v">28 Sep 2026, 10:15</span></div>
+          <div class="kv"><span class="kv__k">Takes effect</span><span class="kv__v">Not stated</span></div>
+        </div>
+        <div class="report__body">
+          <div class="state">
+            <div class="was"><span class="kv__k">Previous</span><p>2% standard fee; no introductory offer</p></div>
+            <div class="now"><span class="kv__k">Current</span><p>2% standard fee; “0%* platform fees for first 90 days”</p></div>
+          </div>
+
+          <div>
+            <h4 class="r-h">What changed <span class="pin" aria-hidden="true">1</span><span class="tag-fact">Facts</span></h4>
+            <p>Razorpay’s pricing page now shows “0%* platform fees for first 90 days”. The 2% headline fee is unchanged. A footnote reads “Platform fee 2.15% + GST”.</p>
+          </div>
+
+          <div class="assess">
+            <h4 class="r-h">Why it matters to Orbit Payments <span class="pin" aria-hidden="true">2</span><span class="tag-ai">Agent assessment</span></h4>
+            <p>A 90-day fee holiday lowers the cost of switching gateways for small merchants — Orbit’s core segment. Expect price objections in new-merchant deals while the offer runs.</p>
+            <div class="assess-lists">
+              <div><h5>Considerations</h5><ul><li>Review Orbit’s own new-merchant offer</li><li>Brief Sales on positioning against a time-limited offer</li></ul></div>
+              <div><h5>Assumptions</h5><ul><li>The offer applies to new merchants only (terms not seen)</li><li>The 2.15% + GST footnote does not change the 2% headline (not verified)</li></ul></div>
+              <div><h5>Watch next</h5><ul><li>The offer’s terms and end date</li><li>Whether other gateways respond</li></ul></div>
+            </div>
+          </div>
+
+          <div class="route-row">
+            <span class="kv__k">Routed to <span class="pin" aria-hidden="true">7</span></span>
+            <span class="chip">Product</span><span class="chip">Sales &amp; BD</span><span class="chip">Strategy</span>
+            <span class="when">Immediately, to the inbox and Slack</span>
+          </div>
+
+          <div>
+            <h4 class="r-h">Evidence <span class="pin" aria-hidden="true">5</span></h4>
+            <p class="evsum">Confirmed: Razorpay’s official pricing page supports it; no contradicting sources found.</p>
+            <ol class="evlist">
+              <li>
+                <p class="src"><b>razorpay.com/pricing</b><span class="chip chip--primary">Primary</span><span class="chip">Supports</span><span class="verified"><svg class="icon" aria-hidden="true"><use href="#i-tick"/></svg>Quote verified</span></p>
+                <blockquote><span class="mark">0%* platform fees for first 90 days</span></blockquote>
+              </li>
+              <li>
+                <p class="src"><b>razorpay.com/pricing</b><span class="chip chip--primary">Primary</span><span class="chip">Context</span><span class="verified"><svg class="icon" aria-hidden="true"><use href="#i-tick"/></svg>Quote verified</span></p>
+                <blockquote><span class="mark">Platform fee 2.15% + GST</span></blockquote>
+              </li>
+              <li>
+                <p class="src"><b>Archived capture of the same page</b><span class="chip chip--primary">Primary</span><span class="chip">Archive</span></p>
+                <p class="ctx">An earlier version of the page, showing the previous state.</p>
+              </li>
+            </ol>
+          </div>
+
+          <div>
+            <h4 class="r-h">History of this fact</h4>
+            <ol class="history">
+              <li><span class="ver">v1</span><span>No introductory offer. Observed in archive captures; historical.</span></li>
+              <li><span class="ver">v2</span><span>“0%* platform fees for first 90 days”. Observed live, 28 Sep 2026.</span></li>
+            </ol>
+          </div>
+        </div>
+        <div class="report__foot">
+          <span class="run">Investigation: 7 steps, 4 tool calls, 41 s <span class="pin" aria-hidden="true">8</span></span>
+          <span class="fake-btns" aria-hidden="true"><span class="fake-btn">View run trace</span><span class="fake-btn">Relevant</span><span class="fake-btn">Not relevant</span><span class="fake-btn">Propose external share</span></span>
+        </div>
+      </figure>
+
+      <div>
+        <h3 class="sub-title">Reading the card</h3>
+        <ol class="annotations">
+          <li><span class="pin" aria-hidden="true">1</span><span><strong>Facts only.</strong> What changed, with no interpretation. Each fact traces to a quote.</span></li>
+          <li><span class="pin" aria-hidden="true">2</span><span><strong>Agent assessment.</strong> Written for your company from its profile, labelled, with its assumptions listed.</span></li>
+          <li><span class="pin" aria-hidden="true">3</span><span><strong>Severity.</strong> How much it matters to you: critical, high, medium or low.</span></li>
+          <li><span class="pin" aria-hidden="true">4</span><span><strong>Evidence status.</strong> How sure we are that it happened — set by fixed rules, not by the model.</span></li>
+          <li><span class="pin" aria-hidden="true">5</span><span><strong>Verified quotes.</strong> Each was found word for word in a page fetched during the investigation. Highlighted text is a checked quote.</span></li>
+          <li><span class="pin" aria-hidden="true">6</span><span><strong>Two kinds of time.</strong> When SignalLens saw it, and when it takes effect.</span></li>
+          <li><span class="pin" aria-hidden="true">7</span><span><strong>Routing.</strong> Which teams, and how urgently.</span></li>
+          <li><span class="pin" aria-hidden="true">8</span><span><strong>Show your work.</strong> The full investigation trace, and feedback that becomes visible rules.</span></li>
+        </ol>
+      </div>
+    </div>
+    <p class="note card-note">Illustration. The quoted text is from Razorpay’s public pricing page as of September 2026. The detection, the previous state, the dates, the customer “Orbit Payments”, the investigation numbers and the assessment are hypothetical.</p>
+  </div>
+</section>
+
+<!-- ================= EVIDENCE ================= -->
+<section class="section section--surface" id="evidence" aria-labelledby="evidence-title">
+  <div class="container">
+    <div class="section__head">
+      <h2 class="section__title" id="evidence-title">How sure are we? Five statuses, fixed rules</h2>
+      <p class="section__intro">The model does only two narrow things: it copies a quote from a page it actually fetched, and says whether the quote supports the claim, contradicts it, or only gives context. Code does the rest — so the same evidence always gives the same status, with a reason anyone can check.</p>
+    </div>
+
+    <div class="evidence-grid">
+      <dl class="terms">
+        <div><dt>Primary source</dt><dd>The entity’s own official website, the regulator that issued the rule, or a statutory registry.</dd></div>
+        <div><dt>Independent source</dt><dd>A distinct publisher — a news outlet or analyst not owned by the entity.</dd></div>
+        <div><dt>Community source</dt><dd>Forums and social posts. Shown as context; never moves the status.</dd></div>
+        <div><dt>Syndicated copy</dt><dd>The same wire story on many sites. It counts once.</dd></div>
+        <div><dt>Quote verification</dt><dd>No quote, no evidence. A quote must appear word for word in a document retrieved during that investigation.</dd></div>
+      </dl>
+
+      <div>
+        <p class="rules-head">Checked in this order. The first rule that matches wins.</p>
+        <ol class="rules">
+          <li><div><span class="ev ev--conflicting"><svg class="icon" aria-hidden="true"><use href="#i-conflicting"/></svg>Conflicting</span><p class="rule">Primary sources disagree, or a primary source contradicts the claim, or independent sources split and no primary source settles it.</p><p class="eg">Example: two outlets report a fee cut, but the pricing page still shows the old fee.</p></div></li>
+          <li><div><span class="ev ev--confirmed"><svg class="icon" aria-hidden="true"><use href="#i-confirmed"/></svg>Confirmed</span><p class="rule">At least one primary source supports it. Independent disagreement is shown as a note.</p><p class="eg">Example: the pricing page itself shows the new offer.</p></div></li>
+          <li><div><span class="ev ev--corroborated"><svg class="icon" aria-hidden="true"><use href="#i-corroborated"/></svg>Corroborated</span><p class="rule">No primary source, but two or more independent publishers support it and none contradict.</p><p class="eg">Example: two business publications report a partnership neither company has announced.</p></div></li>
+          <li><div><span class="ev ev--single"><svg class="icon" aria-hidden="true"><use href="#i-single"/></svg>Single source</span><p class="rule">Exactly one independent publisher supports it.</p><p class="eg">Example: one outlet reports a planned acquisition, citing unnamed sources.</p></div></li>
+          <li><div><span class="ev ev--unverified"><svg class="icon" aria-hidden="true"><use href="#i-unverified"/></svg>Unverified</span><p class="rule">No verified supporting evidence yet.</p><p class="eg">Example: a headline matched, but no quote could be verified.</p></div></li>
+        </ol>
+      </div>
+    </div>
+
+    <div class="axes">
+      <div>
+        <h3 class="sub-title">Severity and evidence are separate questions</h3>
+        <p class="section__intro">Severity is how much it matters to us. Evidence status is how sure we are. A confirmed typo fix is low severity; an important rumour can be unverified. One red dot that mixes the two hides exactly what you need to know.</p>
+        <p class="section__intro">Rules link the two axes: a single-source item can never be critical, and an unverified item can never be more than medium.</p>
+      </div>
+      <div class="table-scroll" tabindex="0" role="region" aria-label="Severity allowed for each evidence status">
+        <table class="matrix">
+          <caption>Which severities each evidence status allows</caption>
+          <thead>
+            <tr>
+              <th scope="col">Evidence status</th>
+              <th scope="col"><span class="sev sev--low"><span class="sev__bars" aria-hidden="true"><i></i><i></i><i></i><i></i></span>Low</span></th>
+              <th scope="col"><span class="sev sev--medium"><span class="sev__bars" aria-hidden="true"><i></i><i></i><i></i><i></i></span>Medium</span></th>
+              <th scope="col"><span class="sev sev--high"><span class="sev__bars" aria-hidden="true"><i></i><i></i><i></i><i></i></span>High</span></th>
+              <th scope="col"><span class="sev sev--critical"><span class="sev__bars" aria-hidden="true"><i></i><i></i><i></i><i></i></span>Critical</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><th scope="row"><span class="ev ev--confirmed"><svg class="icon" aria-hidden="true"><use href="#i-confirmed"/></svg>Confirmed</span></th><td class="yes"><svg class="icon" aria-hidden="true"><use href="#i-tick"/></svg>Yes</td><td class="yes"><svg class="icon" aria-hidden="true"><use href="#i-tick"/></svg>Yes</td><td class="yes"><svg class="icon" aria-hidden="true"><use href="#i-tick"/></svg>Yes</td><td class="yes"><svg class="icon" aria-hidden="true"><use href="#i-tick"/></svg>Yes</td></tr>
+            <tr><th scope="row"><span class="ev ev--corroborated"><svg class="icon" aria-hidden="true"><use href="#i-corroborated"/></svg>Corroborated</span></th><td class="yes"><svg class="icon" aria-hidden="true"><use href="#i-tick"/></svg>Yes</td><td class="yes"><svg class="icon" aria-hidden="true"><use href="#i-tick"/></svg>Yes</td><td class="yes"><svg class="icon" aria-hidden="true"><use href="#i-tick"/></svg>Yes</td><td class="yes"><svg class="icon" aria-hidden="true"><use href="#i-tick"/></svg>Yes</td></tr>
+            <tr><th scope="row"><span class="ev ev--conflicting"><svg class="icon" aria-hidden="true"><use href="#i-conflicting"/></svg>Conflicting</span></th><td class="yes"><svg class="icon" aria-hidden="true"><use href="#i-tick"/></svg>Yes</td><td class="yes"><svg class="icon" aria-hidden="true"><use href="#i-tick"/></svg>Yes</td><td class="yes"><svg class="icon" aria-hidden="true"><use href="#i-tick"/></svg>Yes</td><td class="yes"><svg class="icon" aria-hidden="true"><use href="#i-tick"/></svg>Yes</td></tr>
+            <tr><th scope="row"><span class="ev ev--single"><svg class="icon" aria-hidden="true"><use href="#i-single"/></svg>Single source</span></th><td class="yes"><svg class="icon" aria-hidden="true"><use href="#i-tick"/></svg>Yes</td><td class="yes"><svg class="icon" aria-hidden="true"><use href="#i-tick"/></svg>Yes</td><td class="yes"><svg class="icon" aria-hidden="true"><use href="#i-tick"/></svg>Yes</td><td class="no"><svg class="icon" aria-hidden="true"><use href="#i-no"/></svg>No</td></tr>
+            <tr><th scope="row"><span class="ev ev--unverified"><svg class="icon" aria-hidden="true"><use href="#i-unverified"/></svg>Unverified</span></th><td class="yes"><svg class="icon" aria-hidden="true"><use href="#i-tick"/></svg>Yes</td><td class="yes"><svg class="icon" aria-hidden="true"><use href="#i-tick"/></svg>Yes</td><td class="no"><svg class="icon" aria-hidden="true"><use href="#i-no"/></svg>No</td><td class="no"><svg class="icon" aria-hidden="true"><use href="#i-no"/></svg>No</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= WORLD STATE ================= -->
+<section class="section" id="memory" aria-labelledby="memory-title">
+  <div class="container">
+    <div class="section__head">
+      <h2 class="section__title" id="memory-title">A memory that knows what changed, and when</h2>
+      <p class="section__intro">The world state is SignalLens’s persistent memory: every entity it watches, their typed facts, and every value each fact has ever had — dated, sourced and never overwritten. That is how it answers “what changed since I last looked?” without researching from zero.</p>
+    </div>
+
+    <figure class="timeline-fig" aria-labelledby="tl-title">
+      <div class="timeline-fig__head">
+        <h3 id="tl-title">Razorpay / Pricing &amp; fees / Introductory offer</h3>
+        <span class="illus">Illustration: dates and earlier versions are hypothetical</span>
+      </div>
+      <svg class="timeline-svg tl" viewBox="0 0 760 210" role="img" aria-label="Timeline from September 2025 to September 2026. Twelve monthly archive captures replayed at set-up, two discarded by the quality gate; a baseline on 1 September 2026 with no alert; weekly live checks; and on 28 September 2026 a change to a new version of the fact, which produced an intelligence card.">
+        <text class="tl__label" x="60" y="30">v1: no introductory offer shown</text>
+        <text class="tl__sub" x="60" y="46">seen in the archive captures and at the baseline</text>
+        <path class="tl__bracket" d="M60 66V58H716V66"/>
+        <text class="tl__label" x="712" y="30" text-anchor="end">v2: “0%* platform fees for first 90 days”</text>
+        <text class="tl__sub" x="712" y="46" text-anchor="end">observed live on 28 Sep 2026</text>
+        <rect class="tl__v2" x="721" y="22" width="8" height="46" rx="2"/>
+
+        <circle class="tl__cap" cx="85.8" cy="100" r="5"/>
+        <circle class="tl__cap" cx="137.3" cy="100" r="5"/>
+        <circle class="tl__cap" cx="188.9" cy="100" r="5"/>
+        <path class="tl__x" d="M235.9 95.5l9 9M244.9 95.5l-9 9"/>
+        <circle class="tl__cap" cx="292" cy="100" r="5"/>
+        <circle class="tl__cap" cx="343.5" cy="100" r="5"/>
+        <circle class="tl__cap" cx="395" cy="100" r="5"/>
+        <circle class="tl__cap" cx="446.6" cy="100" r="5"/>
+        <path class="tl__x" d="M493.6 95.5l9 9M502.6 95.5l-9 9"/>
+        <circle class="tl__cap" cx="549.6" cy="100" r="5"/>
+        <circle class="tl__cap" cx="601.2" cy="100" r="5"/>
+        <circle class="tl__cap" cx="652.7" cy="100" r="5"/>
+        <rect class="tl__base" x="673.5" y="95" width="10" height="10" rx="1"/>
+        <circle class="tl__live" cx="690.5" cy="100" r="2.6"/>
+        <circle class="tl__live" cx="702.6" cy="100" r="2.6"/>
+        <circle class="tl__live" cx="714.6" cy="100" r="2.6"/>
+        <path class="tl__change" d="M724.9 91.5l8.5 8.5-8.5 8.5-8.5-8.5z"/>
+
+        <line class="tl__axis" x1="60" y1="130" x2="730" y2="130"/>
+        <line class="tl__tick" x1="60" y1="125" x2="60" y2="135"/>
+        <line class="tl__tick" x1="111.5" y1="127" x2="111.5" y2="133"/>
+        <line class="tl__tick" x1="163.1" y1="127" x2="163.1" y2="133"/>
+        <line class="tl__tick" x1="214.6" y1="127" x2="214.6" y2="133"/>
+        <line class="tl__tick" x1="266.2" y1="125" x2="266.2" y2="135"/>
+        <line class="tl__tick" x1="317.7" y1="127" x2="317.7" y2="133"/>
+        <line class="tl__tick" x1="369.2" y1="127" x2="369.2" y2="133"/>
+        <line class="tl__tick" x1="420.8" y1="127" x2="420.8" y2="133"/>
+        <line class="tl__tick" x1="472.3" y1="125" x2="472.3" y2="135"/>
+        <line class="tl__tick" x1="523.8" y1="127" x2="523.8" y2="133"/>
+        <line class="tl__tick" x1="575.4" y1="127" x2="575.4" y2="133"/>
+        <line class="tl__tick" x1="626.9" y1="127" x2="626.9" y2="133"/>
+        <line class="tl__tick" x1="678.5" y1="125" x2="678.5" y2="135"/>
+        <text class="tl__month" x="60" y="152">Sep 2025</text>
+        <text class="tl__month" x="266.2" y="152" text-anchor="middle">Jan 2026</text>
+        <text class="tl__month" x="472.3" y="152" text-anchor="middle">May 2026</text>
+        <text class="tl__month" x="678.5" y="152" text-anchor="middle">Sep 2026</text>
+
+        <circle class="tl__cap" cx="66" cy="186" r="5"/>
+        <text class="tl__sub" x="78" y="190">archive capture (backfill)</text>
+        <path class="tl__x" d="M233.5 181.5l9 9M242.5 181.5l-9 9"/>
+        <text class="tl__sub" x="250" y="190">discarded by the quality gate</text>
+        <rect class="tl__base" x="418" y="181" width="10" height="10" rx="1"/>
+        <text class="tl__sub" x="434" y="190">baseline, no alert</text>
+        <circle class="tl__live" cx="548" cy="186" r="2.6"/>
+        <text class="tl__sub" x="556" y="190">live check</text>
+        <path class="tl__change" d="M630 177.5l8.5 8.5-8.5 8.5-8.5-8.5z"/>
+        <text class="tl__sub" x="644" y="190">change: card</text>
+      </svg>
+
+      <div class="table-scroll" tabindex="0" role="region" aria-label="State versions">
+        <table class="ledger">
+          <caption>State versions, as the world state records them</caption>
+          <thead>
+            <tr><th scope="col">Fact</th><th scope="col">Version</th><th scope="col">Value</th><th scope="col">Observed</th><th scope="col">Takes effect</th><th scope="col">How observed</th><th scope="col">Evidence</th></tr>
+          </thead>
+          <tbody>
+            <tr><th scope="row">Introductory offer</th><td>v1</td><td>No introductory offer shown</td><td>Sep 2025</td><td>Unknown</td><td>Archive capture (historical)</td><td><span class="ev ev--confirmed"><svg class="icon" aria-hidden="true"><use href="#i-confirmed"/></svg>Confirmed</span></td></tr>
+            <tr class="new"><th scope="row">Introductory offer</th><td>v2</td><td><span class="mark">“0%* platform fees for first 90 days”</span></td><td>28 Sep 2026</td><td>Not stated</td><td>Live page</td><td><span class="ev ev--confirmed"><svg class="icon" aria-hidden="true"><use href="#i-confirmed"/></svg>Confirmed</span></td></tr>
+            <tr><th scope="row">Standard domestic fee</th><td>v1</td><td>2%</td><td>Sep 2025</td><td>Unknown</td><td>Archive capture; unchanged since</td><td><span class="ev ev--confirmed"><svg class="icon" aria-hidden="true"><use href="#i-confirmed"/></svg>Confirmed</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <figcaption class="note" style="margin-top:12px">The current values are quoted from Razorpay’s live pricing page (September 2026). The earlier version, all dates and the two discarded captures are hypothetical.</figcaption>
+    </figure>
+
+    <div class="times">
+      <div>
+        <h3>Two kinds of time</h3>
+        <p>SignalLens might observe a price change on 28 September. The company may have made it on 20 September, or announced it effective from 1 October. Every version keeps both: when we saw it, and when it bites.</p>
+      </div>
+      <div>
+        <h3>History on day one</h3>
+        <p>At set-up, about a year of monthly archive captures of official pages is replayed through the same pipeline. You start with “here is how this page changed over the last year” — labelled historical, and never sent as alerts.</p>
+      </div>
+    </div>
+
+    <div class="vs">
+      <h3 class="sub-title">Not a chatbot. Not RAG.</h3>
+      <p class="section__intro" style="margin-bottom:20px">RAG — retrieval-augmented generation — searches a pile of documents for passages that look relevant and has a model answer from them. It’s useful for “what do these documents say?”, and poor at “what changed, when, and are we sure?”</p>
+      <div class="table-scroll" tabindex="0" role="region" aria-label="Chat assistant, RAG and world state compared">
+        <table class="vs-table">
+          <thead>
+            <tr><th scope="col"><span class="visually-hidden">Question</span></th><th scope="col">Chat assistant</th><th scope="col">RAG over documents</th><th scope="col" class="us">SignalLens world state</th></tr>
+          </thead>
+          <tbody>
+            <tr><th scope="row">When it works</th><td>When you ask</td><td>When you ask</td><td class="us">Continuously, on a schedule</td></tr>
+            <tr><th scope="row">What it keeps</th><td>A conversation</td><td>Chunks of documents</td><td class="us">Typed facts, with every past value</td></tr>
+            <tr><th scope="row">Knows what changed, and when</th><td>No</td><td>No — documents aren’t versions</td><td class="us">Yes — observed and effective time for every version</td></tr>
+            <tr><th scope="row">Proof</th><td>Links, if any</td><td>Retrieved passages</td><td class="us">Verified quotes and a rule-based status</td></tr>
+            <tr><th scope="row">Knows who “we” are</th><td>Only if told each time</td><td>No</td><td class="us">Yes — your Company Profile and teams</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="analogy">RAG is a library with a good search desk. The world state is a ledger: every entry dated, sourced and never overwritten.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ================= DOMAINS ================= -->
+<section class="section section--surface" id="domains" aria-labelledby="domains-title">
+  <div class="container">
+    <div class="section__head">
+      <h2 class="section__title" id="domains-title">Same engine, any market</h2>
+      <p class="section__intro">Razorpay is only the demonstration. For each subject, the Planner discovers a different model of the domain — what the products are, which regulators matter, which facts to track — and a person approves it. The engine never changes.</p>
+    </div>
+    <div class="domains">
+      <article class="domain">
+        <h3>Razorpay</h3>
+        <p class="dm">Financial services, payments, India</p>
+        <dl>
+          <div><dt>What the products are</dt><dd>Payment products, such as Payment Gateway and RazorpayX</dd></div>
+          <div><dt>Regulators</dt><dd>Reserve Bank of India; NPCI, which runs UPI</dd></div>
+          <div><dt>Facts it would track</dt><dd>Standard fee (percent), introductory offer (text), products listed (list)</dd></div>
+          <div><dt>A material change looks like</dt><dd>A new fee offer, a new product, an RBI circular</dd></div>
+        </dl>
+      </article>
+      <article class="domain">
+        <h3>Tata Motors</h3>
+        <p class="dm">Automotive: passenger, commercial and electric vehicles</p>
+        <dl>
+          <div><dt>What the products are</dt><dd>Vehicle models and variants, such as the Nexon EV</dd></div>
+          <div><dt>Regulators and bodies</dt><dd>Road-transport rules, EV incentive schemes, Bharat NCAP safety ratings</dd></div>
+          <div><dt>Facts it would track</dt><dd>Starting price of a model (money), EV models on sale (list), monthly domestic sales (number)</dd></div>
+          <div><dt>A material change looks like</dt><dd>A price revision, a new EV launch, a change to incentive rules, a new plant</dd></div>
+        </dl>
+      </article>
+      <article class="domain">
+        <h3>Pfizer</h3>
+        <p class="dm">Pharmaceuticals, global</p>
+        <dl>
+          <div><dt>What the products are</dt><dd>Medicines, vaccines and pipeline candidates</dd></div>
+          <div><dt>Regulators</dt><dd>US FDA, EMA, and others relevant to your markets</dd></div>
+          <div><dt>Facts it would track</dt><dd>Phase of a candidate (text), approved indications (list), revenue guidance (money)</dd></div>
+          <div><dt>A material change looks like</dt><dd>A candidate moving phase, an approval, a licensing deal, a safety communication</dd></div>
+        </dl>
+      </article>
+    </div>
+    <p class="note domains-note">Illustrative domain models. Real plans are generated at onboarding, checked live, and edited and approved by the user.</p>
+  </div>
+</section>
+
+<!-- ================= WHO ================= -->
+<section class="section" id="who" aria-labelledby="who-title">
+  <div class="container">
+    <div class="section__head">
+      <h2 class="section__title" id="who-title">Who it’s for</h2>
+      <p class="section__intro">The product works in any market. The go-to-market starts where the pain is sharpest and value is quickest to prove.</p>
+    </div>
+
+    <div class="icp">
+      <div class="icp__box">
+        <h3>The beachhead</h3>
+        <p class="hyp">A hypothesis to validate with design partners.</p>
+        <dl>
+          <div><dt>Companies</dt><dd>B2B, roughly 100–2,000 people, in fast-moving, publicly observable markets: payments and fintech, B2B SaaS, commerce enablement</dd></div>
+          <div><dt>Competitors</dt><dd>5–20 direct competitors, with public pricing and product pages</dd></div>
+          <div><dt>Regulation</dt><dd>Meaningful exposure — so Compliance benefits too</dd></div>
+          <div><dt>Team</dt><dd>A small strategy or product-marketing function, and no dedicated competitive-intelligence team</dd></div>
+          <div><dt>First market</dt><dd>Proposed: payments, fintech and B2B SaaS in India</dd></div>
+        </dl>
+      </div>
+      <div class="icp__exp">
+        <h3>Where it expands</h3>
+        <ul>
+          <li><strong>Enterprise intelligence teams</strong>Pharma, automotive and manufacturing — many competitors, products, plants and regulators.</li>
+          <li><strong>Compliance teams</strong>Regulatory horizon scanning, with urgent routing for new rules.</li>
+          <li><strong>Investors</strong>Portfolio companies and their competitors. Evidence and assessment, never investment advice.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="personas">
+      <article class="persona">
+        <h3>The keeper of the competitor spreadsheet</h3>
+        <p class="role">Primary user: a product marketing manager, strategy associate or CI analyst.</p>
+        <dl>
+          <div><dt>Trigger</dt><dd>A deal lost to a competitor move nobody noticed; leadership asking “what is X doing?”</dd></div>
+          <div><dt>Pain</dt><dd>Dozens of sources checked by hand, duplicate alerts, no quick way to prove a claim.</dd></div>
+          <div><dt>Success</dt><dd>No surprises. “What changed?” answered in a minute, with evidence. Hours back every week.</dd></div>
+        </dl>
+      </article>
+      <article class="persona">
+        <h3>The buyer</h3>
+        <p class="role">Head of Strategy, VP Product Marketing or CPO — the founder, in smaller companies.</p>
+        <dl>
+          <div><dt>Trigger</dt><dd>A competitive surprise in front of the board; a compliance near-miss; the person who “just knew” leaving.</dd></div>
+          <div><dt>Pain</dt><dd>Coverage depends on individuals, with no record of how a conclusion was reached.</dd></div>
+          <div><dt>Success</dt><dd>Systematic coverage and decisions backed by evidence they can defend.</dd></div>
+        </dl>
+      </article>
+      <article class="persona">
+        <h3>The people who act on it</h3>
+        <p class="role">Product, Sales &amp; BD, Compliance and Leadership. They configure nothing.</p>
+        <dl>
+          <div><dt>Trigger</dt><dd>A card arrives about the topic their team owns.</dd></div>
+          <div><dt>Pain</dt><dd>Forwarded links without context, or hearing about a change too late to act.</dd></div>
+          <div><dt>Success</dt><dd>Fewer, better items — each with the evidence attached and a clear reason it reached them.</dd></div>
+        </dl>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- ================= JOBS ================= -->
+<section class="section section--surface" id="jobs" aria-labelledby="jobs-title">
+  <div class="container">
+    <div class="section__head">
+      <h2 class="section__title" id="jobs-title">The jobs it’s hired to do</h2>
+    </div>
+    <div class="core-job">
+      <blockquote>When I’m responsible for knowing what’s moving in my market, I want to be told — reliably, and only — about the changes that materially affect my business, so I can act before they cost us, without watching dozens of sources myself.</blockquote>
+      <div class="dims">
+        <p><b>Functional</b>Continuous coverage of competitors, pricing, products, partnerships and regulators.</p>
+        <p><b>Emotional</b>Confidence that nothing important is slipping past.</p>
+        <p><b>Social</b>Being the person who knew first — and was right — in the room.</p>
+      </div>
+    </div>
+    <ul class="jobs">
+      <li><h3>“Tell me what changed since I last checked.”</h3><p>When I’m back after a few days away, I want only what’s new since my last visit, so I can catch up in minutes.</p><p class="serves"><span>Served by:</span> “since your last visit” markers, the daily digest, timelines</p></li>
+      <li><h3>“Show me evidence that this actually happened.”</h3><p>When someone claims a competitor did something, I want the exact words from the source, so I can act or push back with confidence.</p><p class="serves"><span>Served by:</span> verified quotes and rule-based evidence status</p></li>
+      <li><h3>“Explain why this matters.”</h3><p>When a change lands, I want to know what it means for us — and what I’d be assuming — so I can decide what to do.</p><p class="serves"><span>Served by:</span> an assessment grounded in the Company Profile</p></li>
+      <li><h3>“Remember what we’ve learned.”</h3><p>When I need the history, I want it on record, so I don’t rebuild it from memory or screenshots.</p><p class="serves"><span>Served by:</span> the world state and history backfill</p></li>
+      <li><h3>“Don’t flood me with irrelevant alerts.”</h3><p>When things change all the time, I want only what matters to me, so I keep paying attention.</p><p class="serves"><span>Served by:</span> tiered filtering, clustering, the digest, learned rules</p></li>
+      <li><h3>“Send it to the people responsible.”</h3><p>When something affects another team, I want it to reach them with the evidence, so nothing falls between teams.</p><p class="serves"><span>Served by:</span> teams, owned topics and routing rules</p></li>
+      <li><h3>“Let me stay in control.”</h3><p>When a system works on my behalf, I want to approve what it watches and anything that leaves the company, so I can trust it with real work.</p><p class="serves"><span>Served by:</span> plan approval and the approval queue</p></li>
+      <li><h3>“Show me value on day one.”</h3><p>When I try a monitoring tool, I want something useful immediately, so I can decide whether to adopt it.</p><p class="serves"><span>Served by:</span> history backfill; a baseline without alerts</p></li>
+      <li><h3>“Show me how you reached this.”</h3><p>When a conclusion surprises me, I want to see the agent’s steps, so I can decide how far to rely on it.</p><p class="serves"><span>Served by:</span> run traces for every investigation</p></li>
+    </ul>
+  </div>
+</section>
+
+<!-- ================= COMPARE ================= -->
+<section class="section" id="compare" aria-labelledby="compare-title">
+  <div class="container">
+    <div class="section__head">
+      <h2 class="section__title" id="compare-title">How it’s different</h2>
+      <p class="section__intro">The biggest competitor is a capable person with bookmarks, alerts and a spreadsheet. Five kinds of tools each do part of the job well. These describe categories and what their products typically do; individual products vary and change quickly.</p>
+    </div>
+
+    <div class="cats">
+      <div class="cat"><h3>Manual monitoring</h3><p class="eg">The status quo</p><dl><dt>Good at</dt><dd>Context and judgment, with no new tool to buy.</dd><dt>Where SignalLens differs</dt><dd>It takes over the watching and checking, so the person keeps the judgment.</dd></dl></div>
+      <div class="cat"><h3>Page-change monitors</h3><p class="eg">For example, Visualping or Distill</p><dl><dt>Good at</dt><dd>Simple, affordable detection that any page changed.</dd><dt>Where SignalLens differs</dt><dd>It reads the change as facts, filters noise, verifies, explains and routes — with a year of history.</dd></dl></div>
+      <div class="cat"><h3>Alerts and media monitoring</h3><p class="eg">For example, Google Alerts, Meltwater or Talkwalker</p><dl><dt>Good at</dt><dd>Broad coverage of news and mentions; PR and brand analytics.</dd><dt>Where SignalLens differs</dt><dd>One event, not fifteen articles — and the fifteen become corroboration, checked against primary sources.</dd></dl></div>
+      <div class="cat"><h3>Competitive-intelligence platforms</h3><p class="eg">For example, Crayon or Klue</p><dl><dt>Good at</dt><dd>Capturing competitor activity, battlecards and sales enablement for teams with a CI owner.</dd><dt>Where SignalLens differs</dt><dd>It focuses on deciding what materially changed and proving it, for teams without a CI analyst, and covers regulators too.</dd></dl></div>
+      <div class="cat"><h3>Research and company-data platforms</h3><p class="eg">For example, Crunchbase, CB Insights, PitchBook, Tracxn or AlphaSense</p><dl><dt>Good at</dt><dd>Large structured datasets, research documents and powerful search.</dd><dt>Where SignalLens differs</dt><dd>It watches your specific watchlist, down to single pages, and tells you — you don’t have to go and look.</dd></dl></div>
+      <div class="cat"><h3>General AI assistants</h3><p class="eg">For example, ChatGPT, Claude, Gemini or Perplexity</p><dl><dt>Good at</dt><dd>Answering almost any question quickly; long, cited research reports.</dd><dt>Where SignalLens differs</dt><dd>Same class of models, inside a system that watches, remembers, proves and routes.</dd></dl></div>
+    </div>
+
+    <div class="table-scroll" tabindex="0" role="region" aria-label="Comparison table">
+      <table class="cmp">
+        <caption>Category-level and qualitative. “Partly” means some products do some of this, or only with manual effort.</caption>
+        <thead>
+          <tr>
+            <th scope="col">Capability</th>
+            <th scope="col">Manual status quo</th>
+            <th scope="col">Page-change monitors</th>
+            <th scope="col">Alerts and media monitoring</th>
+            <th scope="col">CI platforms</th>
+            <th scope="col">Research platforms</th>
+            <th scope="col">AI assistants</th>
+            <th scope="col" class="us">SignalLens</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><th scope="row">Watches without being asked</th><td><span class="v v--part">Partly, when someone has time</span></td><td><span class="v v--yes">Yes</span></td><td><span class="v v--yes">Yes</span></td><td><span class="v v--yes">Yes</span></td><td><span class="v v--part">Partly</span></td><td><span class="v v--no">Typically no</span></td><td class="us"><span class="v v--yes">Yes</span></td></tr>
+          <tr><th scope="row">Reads changes as typed facts</th><td><span class="v v--yes">By hand</span></td><td><span class="v v--part">Partly</span></td><td><span class="v v--no">No</span></td><td><span class="v v--part">Partly</span></td><td><span class="v v--yes">For their own datasets</span></td><td><span class="v v--part">When asked</span></td><td class="us"><span class="v v--yes">Yes</span></td></tr>
+          <tr><th scope="row">Removes noise before alerting</th><td><span class="v v--yes">By hand</span></td><td><span class="v v--part">Partly</span></td><td><span class="v v--part">Keyword filters</span></td><td><span class="v v--part">Curation</span></td><td><span class="v v--na">Not applicable</span></td><td><span class="v v--na">Not applicable</span></td><td class="us"><span class="v v--yes">Four tiers, visible funnel</span></td></tr>
+          <tr><th scope="row">One alert per real-world event</th><td><span class="v v--yes">By hand</span></td><td><span class="v v--na">Not applicable</span></td><td><span class="v v--no">Typically no</span></td><td><span class="v v--part">Partly</span></td><td><span class="v v--yes">Curated records</span></td><td><span class="v v--na">Not applicable</span></td><td class="us"><span class="v v--yes">Clustering</span></td></tr>
+          <tr><th scope="row">Verified quotes and a rule-based status</th><td><span class="v v--part">Screenshots</span></td><td><span class="v v--no">No</span></td><td><span class="v v--no">No</span></td><td><span class="v v--no">Typically no</span></td><td><span class="v v--part">Curated and cited</span></td><td><span class="v v--part">Links, not checked quotes</span></td><td class="us"><span class="v v--yes">Yes</span></td></tr>
+          <tr><th scope="row">Versioned history of facts</th><td><span class="v v--part">A spreadsheet</span></td><td><span class="v v--part">Snapshots from set-up</span></td><td><span class="v v--part">Article archive</span></td><td><span class="v v--part">Captured items</span></td><td><span class="v v--yes">For their datasets</span></td><td><span class="v v--no">No</span></td><td class="us"><span class="v v--yes">Yes, with a year of backfill</span></td></tr>
+          <tr><th scope="row">Explains why it matters to you</th><td><span class="v v--yes">Yes</span></td><td><span class="v v--no">No</span></td><td><span class="v v--no">No</span></td><td><span class="v v--part">Analyst-written</span></td><td><span class="v v--no">No</span></td><td><span class="v v--part">If given context each time</span></td><td class="us"><span class="v v--yes">Grounded in your profile, labelled</span></td></tr>
+          <tr><th scope="row">Routes to the owning team by urgency</th><td><span class="v v--part">By hand</span></td><td><span class="v v--part">Notifications</span></td><td><span class="v v--part">Partly</span></td><td><span class="v v--yes">Strong distribution</span></td><td><span class="v v--part">Partly</span></td><td><span class="v v--no">No</span></td><td class="us"><span class="v v--yes">Yes</span></td></tr>
+          <tr><th scope="row">Covers regulators alongside competitors</th><td><span class="v v--part">If someone remembers</span></td><td><span class="v v--part">If you add the pages</span></td><td><span class="v v--part">Through keywords</span></td><td><span class="v v--part">Typically competitor-focused</span></td><td><span class="v v--part">Partly</span></td><td><span class="v v--part">When asked</span></td><td class="us"><span class="v v--yes">Yes</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="swipe">Swipe the table sideways to compare every category.</p>
+
+    <div class="not-for">
+      <h3>When SignalLens isn’t the right tool</h3>
+      <ul>
+        <li>Deep financial and deal datasets: use a research platform.</li>
+        <li>Battlecards and CRM-integrated sales enablement today: use a CI platform.</li>
+        <li>PR, brand monitoring and social listening: use a media-monitoring platform.</li>
+        <li>Watching one page for any change at the lowest cost: use a page-change monitor.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ================= TRUST ================= -->
+<section class="section section--surface" id="trust" aria-labelledby="trust-title">
+  <div class="container">
+    <div class="section__head">
+      <h2 class="section__title" id="trust-title">Autonomous for research. Humans for consequences.</h2>
+      <p class="section__intro">SignalLens researches and informs on its own. Anything that leaves your company, and any change to what it watches, waits for a person. You can always see what it found, why it thought it mattered, and what evidence supports it.</p>
+    </div>
+
+    <div class="autonomy">
+      <div class="col-self">
+        <h3>On its own</h3>
+        <ul>
+          <li>Search the web and open public pages</li>
+          <li>Extract facts and compare them with the previous state</li>
+          <li>Investigate, looking for confirmation and contradiction</li>
+          <li>Record quoted evidence and compute its status</li>
+          <li>Assess impact and write intelligence cards</li>
+          <li>Notify internal teams: inbox, Slack, digest</li>
+          <li>Adjust thresholds from your feedback — visibly, and undoably</li>
+        </ul>
+      </div>
+      <div class="col-ask">
+        <h3>Only with your approval</h3>
+        <ul>
+          <li>Start monitoring: the plan, and every new version of it</li>
+          <li>Send an external email</li>
+          <li>Share a report outside the company</li>
+          <li>Post to an external webhook</li>
+          <li>Next: more action types, such as CRM updates</li>
+        </ul>
+      </div>
+      <div class="col-never">
+        <h3>Never</h3>
+        <ul>
+          <li>Log in anywhere, or get around paywalls or bot challenges</li>
+          <li>Contact the companies it monitors</li>
+          <li>Follow instructions found inside web pages</li>
+          <li>Change its own plan based on what it reads</li>
+          <li>Visit private or internal network addresses</li>
+        </ul>
+      </div>
+    </div>
+
+    <ul class="mechs">
+      <li><h3>Quotes are checked</h3><p>Evidence counts only if its quote is found word for word in a page retrieved during that investigation.</p></li>
+      <li><h3>Status is computed</h3><p>Code applies the evidence rules. A web page cannot talk its way to “Confirmed”.</p></li>
+      <li><h3>Every step is shown</h3><p>Each search, page and model call is a readable step in a run trace, with its tokens and estimated cost.</p></li>
+      <li><h3>Budgets are hard</h3><p>Every agent run has limits on steps, tool calls, time and cost. Running out is reported, not hidden.</p></li>
+      <li><h3>Web text is data, not instructions</h3><p>Research tools are read-only and cannot change settings or send anything — which contains prompt injection.</p></li>
+      <li><h3>Public internet only</h3><p>Every address is checked before fetching; private, internal and cloud-metadata addresses are refused, including after redirects.</p></li>
+      <li><h3>Collected responsibly</h3><p>Honours robots.txt and crawl delays, identifies its crawler, rate-limits per site, and stores short excerpts rather than republishing pages.</p></li>
+      <li><h3>Isolated by workspace</h3><p>Every query is scoped to one workspace. API keys live in the environment, never in the database.</p></li>
+    </ul>
+  </div>
+</section>
+
+<!-- ================= NOT ================= -->
+<section class="section" id="not" aria-labelledby="not-title">
+  <div class="container">
+    <div class="section__head">
+      <h2 class="section__title" id="not-title">What it is not</h2>
+    </div>
+    <ul class="nots">
+      <li><svg class="icon" aria-hidden="true"><use href="#i-dash"/></svg><span><strong>Not a chatbot.</strong> There’s no generic chat window. You approve a plan and receive intelligence.</span></li>
+      <li><svg class="icon" aria-hidden="true"><use href="#i-dash"/></svg><span><strong>Not a RAG system.</strong> It keeps typed, versioned facts, not a pile of text chunks.</span></li>
+      <li><svg class="icon" aria-hidden="true"><use href="#i-dash"/></svg><span><strong>Not a news feed or newsletter.</strong> It sends the events that matter to you, deduplicated and verified.</span></li>
+      <li><svg class="icon" aria-hidden="true"><use href="#i-dash"/></svg><span><strong>Not a scraper.</strong> It watches approved pages and runs targeted searches, politely.</span></li>
+      <li><svg class="icon" aria-hidden="true"><use href="#i-dash"/></svg><span><strong>Not a page-change monitor.</strong> A changed page is where its work starts.</span></li>
+      <li><svg class="icon" aria-hidden="true"><use href="#i-dash"/></svg><span><strong>Not six AI agents talking.</strong> Two agent loops; the rest is code or a single model call.</span></li>
+      <li><svg class="icon" aria-hidden="true"><use href="#i-dash"/></svg><span><strong>Not a confidence score.</strong> Evidence statuses follow fixed, checkable rules.</span></li>
+      <li><svg class="icon" aria-hidden="true"><use href="#i-dash"/></svg><span><strong>Not an autopilot.</strong> Anything consequential needs a person.</span></li>
+      <li><svg class="icon" aria-hidden="true"><use href="#i-dash"/></svg><span><strong>Not a way to get non-public information.</strong> No logins, paywalls or private data.</span></li>
+      <li><svg class="icon" aria-hidden="true"><use href="#i-dash"/></svg><span><strong>Not a decision-maker, or investment advice.</strong> It supplies evidence and a labelled assessment. People decide.</span></li>
+    </ul>
+    <p class="is-line">What it is: a persistent, autonomous system for keeping an evidence-backed understanding of a company’s changing external environment.</p>
+  </div>
+</section>
+
+<!-- ================= ROADMAP ================= -->
+<section class="section section--surface" id="roadmap" aria-labelledby="roadmap-title">
+  <div class="container">
+    <div class="section__head">
+      <h2 class="section__title" id="roadmap-title">What’s built now, and what’s next</h2>
+    </div>
+    <div class="roadmap">
+      <div class="now">
+        <h3>Version 1</h3>
+        <p class="when">Now</p>
+        <ul>
+          <li>Plain-language onboarding, a researched plan, and human approval with a reason and live check for every source</li>
+          <li>Company Profile and teams, used for impact and routing</li>
+          <li>Baseline, typed facts and a versioned world state</li>
+          <li>About a year of history backfilled from web archives</li>
+          <li>Page monitoring with a snapshot quality gate; news monitoring with clustering</li>
+          <li>Four-tier materiality filter and the attention funnel</li>
+          <li>Investigation agent, quote verification and rule-based evidence status</li>
+          <li>Intelligence cards, world-state explorer and run traces</li>
+          <li>Routing to the in-app inbox and Slack; daily digest; “since your last visit”</li>
+          <li>Feedback that becomes visible, undoable rules</li>
+          <li>Approval queue for external actions; robots.txt, rate limits and private-network protection</li>
+        </ul>
+      </div>
+      <div>
+        <h3>Next</h3>
+        <p class="when">Planned</p>
+        <ul>
+          <li>Draft the Company Profile from your own website</li>
+          <li>Visual, screenshot-based change detection</li>
+          <li>RSS feeds, filings and GitHub releases as first-class sources</li>
+          <li>Email digest and Microsoft Teams</li>
+          <li>More approval-gated actions, such as CRM updates</li>
+          <li>Single sign-on and SCIM</li>
+          <li>Ask questions of the world state, with answers that cite versions and evidence</li>
+          <li>Semantic search across evidence; full browser rendering</li>
+          <li>Usage-based plans; a replay harness to measure detection quality</li>
+        </ul>
+      </div>
+      <div class="later">
+        <h3>Later</h3>
+        <p class="when">Direction, not commitment</p>
+        <ul>
+          <li>Push verified cards into CI platforms, CRMs and wikis</li>
+          <li>Registries such as clinical-trial databases as first-class sources</li>
+          <li>Portfolio views for investors</li>
+          <li>Team-level analytics</li>
+          <li>Sources in more languages</li>
+        </ul>
+      </div>
+    </div>
+    <p class="never-line"><strong>Deliberately never:</strong> six AI agents talking to each other, blanket crawling of whole sites, or a generic chat interface.</p>
+  </div>
+</section>
+
+<!-- ================= FAQ ================= -->
+<section class="section" id="faq" aria-labelledby="faq-title">
+  <div class="container">
+    <div class="section__head">
+      <h2 class="section__title" id="faq-title">Questions a sceptic would ask</h2>
+    </div>
+    <div class="faq">
+      <details>
+        <summary>Isn’t this just ChatGPT with search?</summary>
+        <div class="answer"><p>No. A chat assistant answers the question you ask, when you ask it, and starts from zero next time. SignalLens watches without being asked, keeps a dated record of facts so it knows what changed and when, accepts evidence only when the exact quote is found in a page it opened, sets its confidence by fixed rules, knows your company and teams, and removes noise before any AI is used. It uses the same class of models — only where judgment is needed.</p></div>
+      </details>
+      <details>
+        <summary>What if the agent is wrong?</summary>
+        <div class="answer"><p>It will sometimes be wrong, so errors are made visible and cheap to correct. Facts come with quotes you can read. The status comes from rules you can check. The assessment is labelled and lists its assumptions, so you can see exactly where you disagree. Mark a source “Inaccurate” and that publisher stops counting towards corroboration in your workspace. And nothing leaves your company without approval.</p></div>
+      </details>
+      <details>
+        <summary>Is monitoring competitors’ websites legal?</summary>
+        <div class="answer"><p>Reading public web pages is a normal, long-standing business practice — it’s what your team already does by hand. The risk lies in how data is collected and used, so SignalLens stays at the conservative end: public pages only, robots.txt and crawl delays honoured, an identified crawler, per-site rate limits, no logins or paywall workarounds, and short quoted excerpts rather than republished content.</p><p>Laws and website terms vary by country and site. This isn’t legal advice; check specific concerns with counsel.</p></div>
+      </details>
+      <details>
+        <summary>How is this different from Google Alerts, Visualping or Crayon?</summary>
+        <div class="answer"><p>Google Alerts tells you new pages match your keywords — one story often arrives many times, unverified. A page-change monitor like Visualping reliably tells you a page changed, typically without saying what it means, whether it’s true, or who should know. A CI platform like Crayon is strong at capturing competitor activity and turning it into battlecards for teams with a CI owner. SignalLens decides what materially changed, proves it with a rule-based status, explains it for your company and routes it — for teams without a CI analyst, and across regulators as well as competitors.</p></div>
+      </details>
+      <details>
+        <summary>What does it cost to run?</summary>
+        <div class="answer"><p>Mostly it depends on how many sources you watch and how often they change — not how often they are checked, because most checks end at a free test and never reach a model. Expensive reasoning runs only for material changes, under a hard budget. Every run records its tokens and estimated cost, so cost per monitored subject is measured from day one. Real unit costs will be published once measured on real workspaces.</p></div>
+      </details>
+      <details>
+        <summary>Why would I trust “Confirmed”?</summary>
+        <div class="answer"><p>Because it’s a rule, not an opinion. “Confirmed” means a primary source — the company’s own site, the issuing regulator or a statutory registry — supports the claim, and the exact quote was found in a page fetched during that investigation. You can click through and read it. The model can’t set the status; code does. It doesn’t mean “true forever”: if the page changes again, the next check catches it.</p></div>
+      </details>
+      <details>
+        <summary>Does it work outside fintech?</summary>
+        <div class="answer"><p>Yes. Razorpay is only the demonstration. The plan — entities, topics, facts and sources — is discovered for each subject: vehicle models, plants and EV incentives for Tata Motors; the drug pipeline, trials and FDA and EMA decisions for Pfizer. The engine doesn’t change. The go-to-market starts with fintech and B2B SaaS only because those markets change publicly and often.</p></div>
+      </details>
+      <details>
+        <summary>Won’t it flood me like every other alert tool?</summary>
+        <div class="answer"><p>It’s designed not to. A four-tier filter runs cheapest first; one event becomes one card however many outlets report it; only critical and high items interrupt anyone, and the rest wait for the daily digest; your feedback becomes visible rules. The attention funnel shows how much was removed, and the filtered list shows what and why.</p></div>
+      </details>
+      <details>
+        <summary>Do I have to wait weeks to see anything?</summary>
+        <div class="answer"><p>No. At set-up, about a year of archived versions of official pages is replayed, so on day one you can see how, for example, a pricing page changed over the last year. And because the first observation is a baseline, there’s no false “everything changed” alarm on day one.</p></div>
+      </details>
+      <details>
+        <summary>Can someone manipulate it by planting text on a web page?</summary>
+        <div class="answer"><p>Page content is treated as data, never as instructions. Research tools are read-only and can’t change settings or send anything. Evidence status is computed by code, quotes must exist word for word, and external actions always need approval. The worst a page can do is try to skew the wording of an assessment — which is labelled, sits next to the evidence, and is never acted on without you.</p></div>
+      </details>
+      <details>
+        <summary>What can’t it see?</summary>
+        <div class="answer"><p>Paywalled or login-only content; anything not on the public web, such as sales calls or private negotiations; pages whose robots.txt disallows it; and, in version 1, purely visual changes and pages that only work in a full browser (both are on the roadmap). A broken or blocked source is shown as failing — never silently skipped.</p></div>
+      </details>
+      <details>
+        <summary>Can it learn the wrong thing?</summary>
+        <div class="answer"><p>It learns only from explicit feedback with a reason. Each learned rule is shown in plain words — for example, “because you marked 2 minor product-page changes as not relevant, I now alert only on medium or higher changes there” — with how much feedback supports it, and a one-click undo. Nothing is learned silently.</p></div>
+      </details>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer class="site-footer">
+  <div class="container footer-grid">
+    <div>
+      <p class="brand"><svg viewBox="0 0 32 32" aria-hidden="true" focusable="false"><path class="mark-noise" d="M1 16.8l1.6-2.3 1.5 3.4 1.4-2.4"/><path class="mark-noise" d="M26.5 15.5l1.4 2.4 1.5-3.4 1.6 2.3"/><circle class="mark-lens" cx="16" cy="16" r="10.4"/><path class="mark-signal" d="M9.6 18.2h3.3l3.1-7.6 3.1 7.6h3.3"/></svg><span>SignalLens</span></p>
+      <p>How it works. Industry domain: Business.</p>
+    </div>
+    <div>
+      <p>Razorpay, Tata Motors and Pfizer are real companies used only as examples; SignalLens is not affiliated with them, and their names belong to their owners. Quoted Razorpay pricing text is from its public pricing page as it appeared in September 2026.</p>
+      <p>Every detected change, date, count, assessment and customer shown here — including “Orbit Payments” — is illustrative or hypothetical, and not a claim about real events. Figures are not measurements.</p>
+    </div>
+  </div>
+</footer>
+
+<script>
+  // Open every answer for printing, then restore.
+  (function () {
+    var opened = [];
+    window.addEventListener('beforeprint', function () {
+      opened = [];
+      document.querySelectorAll('.faq details').forEach(function (d) { if (!d.open) { d.open = true; opened.push(d); } });
+    });
+    window.addEventListener('afterprint', function () { opened.forEach(function (d) { d.open = false; }); });
+  })();
+</script>
+</body>
+</html>
