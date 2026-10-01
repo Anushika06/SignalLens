@@ -58,4 +58,4 @@ security:
     - "api.tavily.com"
     - "web.archive.org"
     - "archive.org"
-    - "signallens-api.onrender.com"
+    - "signallens-api-pa36.onrender.com"
