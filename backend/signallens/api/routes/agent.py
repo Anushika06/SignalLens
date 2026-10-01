@@ -187,7 +187,10 @@ async def agent_manifest(svc: Services = Depends(services)) -> dict[str, Any]:
 @router.post("/brief")
 async def agent_brief(request: Request, client: str = Depends(rate_limited_client),
                       svc: Services = Depends(services)):
-    inputs = await _parsed_inputs(request)
+    return await _run_sync(svc, await _parsed_inputs(request), client)
+
+
+async def _run_sync(svc: Services, inputs, client: str):
     _require_configured(svc)
     brief_id = await create_brief(svc, inputs, client=client, status="running")
     outcome = await run_stored_brief(svc, brief_id)
@@ -199,6 +202,20 @@ async def agent_brief(request: Request, client: str = Depends(rate_limited_clien
             "brief_id": str(brief_id)})
     return {"format": "markdown", "response": row.markdown, "brief_id": str(brief_id), "data": row.result,
             "trace": row.trace}
+
+
+@router.get("/brief")
+async def agent_brief_get(request: Request, company: str, your_company: str | None = None,
+                          focus: str | None = None, language: str | None = None, months_back: int | None = None,
+                          client: str = Depends(rate_limited_client), svc: Services = Depends(services)):
+    """Same as POST, with inputs as query parameters, so the agent can be tried from a browser."""
+    body = {k: v for k, v in {"company": company, "your_company": your_company, "focus": focus,
+                              "language": language, "months_back": months_back}.items() if v is not None}
+    try:
+        inputs = parse_brief_request(body)
+    except BriefRequestError as e:
+        raise HTTPException(status_code=422, detail=str(e)) from e
+    return await _run_sync(svc, inputs, client)
 
 
 @router.post("/briefs", status_code=202)

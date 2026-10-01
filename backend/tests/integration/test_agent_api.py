@@ -188,3 +188,28 @@ async def test_model_outage_still_returns_a_degraded_brief(session_factory, monk
         assert "impact analysis could not be completed" in resp.json()["response"]
     finally:
         await client.aclose()
+
+
+async def test_get_brief_with_query_parameters(env):
+    resp = await env.client.get("/api/agent/brief", params={"company": "Nimbus Pay", "your_company": "Orbit"})
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["response"].startswith("# Nimbus Pay — intelligence brief")
+    assert (await env.client.get("/api/agent/brief")).status_code == 422
+
+
+async def test_agent_endpoints_allow_any_origin_but_the_app_does_not(env):
+    pre = await env.client.options("/api/agent/brief", headers={
+        "Origin": "https://aikart.example", "Access-Control-Request-Method": "POST",
+        "Access-Control-Request-Headers": "content-type,x-api-key"})
+    assert pre.status_code == 204 and pre.headers["access-control-allow-origin"] == "*"
+    assert "X-API-Key" in pre.headers["access-control-allow-headers"]
+    got = await env.client.get("/api/agent/health", headers={"Origin": "https://aikart.example"})
+    assert got.headers["access-control-allow-origin"] == "*"
+    assert "access-control-allow-credentials" not in got.headers
+    app_call = await env.client.get("/api/health", headers={"Origin": "https://evil.example"})
+    assert "access-control-allow-origin" not in app_call.headers
+
+
+async def test_root_lists_the_agent_endpoints(env):
+    body = (await env.client.get("/")).json()
+    assert body["agent"]["health"] == "https://api.test/api/agent/health"
