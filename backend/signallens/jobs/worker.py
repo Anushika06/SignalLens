@@ -18,10 +18,12 @@ from typing import Any
 from sqlalchemy import select, update
 from sqlalchemy.dialects.postgresql import insert
 
+from signallens.brief.service import run_stored_brief
 from signallens.db.base import utcnow
 from signallens.db.models import Job, Source, WorkerHeartbeat, Workspace
 from signallens.db.session import transaction
 from signallens.jobs import queue
+from signallens.pipeline.ask import answer_question
 from signallens.pipeline.collection import backfill_source, baseline_source, check_source
 from signallens.pipeline.delivery import execute_approval, route_report, send_digest
 from signallens.pipeline.investigate import investigate_event
@@ -48,6 +50,8 @@ HANDLERS: dict[str, Handler] = {
     "route_report": lambda svc, p: route_report(svc, _uuid(p, "report_id")),
     "send_digest": lambda svc, p: send_digest(svc, _uuid(p, "workspace_id")),
     "execute_approval": lambda svc, p: execute_approval(svc, _uuid(p, "approval_id")),
+    "ask": lambda svc, p: answer_question(svc, _uuid(p, "run_id")),
+    "agent_brief": lambda svc, p: run_stored_brief(svc, _uuid(p, "brief_id")),
 }
 
 BASELINE_KINDS = ("baseline_source", "backfill_source")

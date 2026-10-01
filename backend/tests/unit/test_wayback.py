@@ -163,3 +163,31 @@ async def test_requests_are_paced():
     await client.fetch_capture(capture)
     await client.fetch_capture(capture)
     assert time.perf_counter() - started >= 0.18
+
+
+AVAILABLE = "https://archive.org/wayback/available"
+
+
+@respx.mock
+async def test_closest_capture_via_availability_api():
+    route = respx.get(AVAILABLE).mock(return_value=httpx.Response(200, json={"archived_snapshots": {"closest": {
+        "available": True, "status": "200", "timestamp": "20251002143739",
+        "url": "http://web.archive.org/web/20251002143739/https://razorpay.com/pricing/"}}}))
+    cap = await make_client().closest_capture("https://razorpay.com/pricing/", date(2025, 10, 1))
+    assert dict(route.calls.last.request.url.params) == {"url": "https://razorpay.com/pricing/",
+                                                         "timestamp": "20251001"}
+    assert cap.timestamp == "20251002143739" and cap.original_url == "https://razorpay.com/pricing/"
+    assert cap.raw_url == "https://web.archive.org/web/20251002143739id_/https://razorpay.com/pricing/"
+
+
+@respx.mock
+@pytest.mark.parametrize("response", [
+    httpx.Response(200, json={"archived_snapshots": {}}),
+    httpx.Response(200, json={"archived_snapshots": {"closest": {"available": True, "status": "404",
+                                                                 "timestamp": "20251002143739", "url": "x"}}}),
+    httpx.Response(503, text="busy"),
+    httpx.Response(200, text="not json"),
+])
+async def test_closest_capture_returns_none_when_unavailable(response):
+    respx.get(AVAILABLE).mock(return_value=response)
+    assert await make_client().closest_capture("https://razorpay.com/pricing/", date(2025, 10, 1)) is None

@@ -1,18 +1,22 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { History, ShieldCheck, UserCheck } from "lucide-react";
 
 import { PageHeader } from "@/components/common/page-header";
 import { ListSkeleton } from "@/components/common/skeletons";
 import { EmptyState, ErrorState } from "@/components/common/states";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useApprovals } from "@/lib/hooks";
-import type { Approval } from "@/lib/types";
+import { useApprovals, useWorkspace } from "@/lib/hooks";
+import { routes } from "@/lib/routes";
+import type { Approval, WorkspaceRole } from "@/lib/types";
 
 import { ApprovalCard } from "./approval-card";
 
 type Tab = "pending" | "decided";
+
+const ROLE_LABEL: Record<WorkspaceRole, string> = { owner: "Owner", admin: "Admin", member: "Member" };
 
 const newestFirst = (key: (approval: Approval) => string | null) => (a: Approval, b: Approval) =>
   new Date(key(b) ?? b.created_at).getTime() - new Date(key(a) ?? a.created_at).getTime();
@@ -46,6 +50,7 @@ export function ApprovalsScreen({ wid }: { wid: string }) {
   const [tab, setTab] = useState<Tab>("pending");
   const pendingQuery = useApprovals(wid, "pending");
   const allQuery = useApprovals(wid);
+  const myRole = useWorkspace(wid).data?.my_role;
 
   const pending = pendingQuery.data ? [...pendingQuery.data].sort(newestFirst((a) => a.created_at)) : undefined;
   const decided = allQuery.data
@@ -67,6 +72,23 @@ export function ApprovalsScreen({ wid }: { wid: string }) {
             Agents research, verify and notify your teams autonomously. Sending an email, sharing a card outside the
             company or posting to a partner&apos;s webhook always waits here for a human decision — agents can only
             propose.
+          </p>
+          <p className="text-pretty text-muted-foreground" data-testid="approver-rule">
+            <span className="font-medium text-foreground">Approvers: owners and admins; you can&apos;t approve your own
+            request</span>{" "}
+            (unless you&apos;re the only approver — then it&apos;s recorded as self-approved).
+            {myRole ? (
+              <>
+                {" "}
+                Your role here: <span className="font-medium text-foreground">{ROLE_LABEL[myRole]}</span>.
+              </>
+            ) : null}{" "}
+            <Link
+              href={`${routes.settings(wid)}#members`}
+              className="font-medium text-foreground/80 underline-offset-4 hover:text-brand hover:underline"
+            >
+              Members &amp; roles
+            </Link>
           </p>
         </div>
       </div>

@@ -15,6 +15,7 @@ export function LoginScreen() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const next = safeNextPath(searchParams.get("next"));
+  const ssoError = searchParams.get("sso_error");
   const { data: me } = useOptionalMe();
 
   // Already signed in (e.g. an old bookmark to /login): skip the form.
@@ -37,7 +38,7 @@ export function LoginScreen() {
             Signed in as {me.user.email}. Taking you there…
           </p>
         ) : (
-          <AuthForm onSuccess={() => router.replace(next)} />
+          <AuthForm onSuccess={() => router.replace(next)} next={next} ssoError={ssoError} />
         )}
       </div>
     </SimpleShell>

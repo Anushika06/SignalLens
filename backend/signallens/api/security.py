@@ -23,7 +23,10 @@ def hash_password(password: str) -> str:
     return f"scrypt${SCRYPT_N}${SCRYPT_R}${SCRYPT_P}${base64.b64encode(salt).decode()}${base64.b64encode(digest).decode()}"
 
 
-def verify_password(password: str, stored: str) -> bool:
+def verify_password(password: str, stored: str | None) -> bool:
+    """False for a wrong password, and always False for accounts without one (single sign-on only)."""
+    if not stored:
+        return False
     try:
         scheme, n, r, p, salt_b64, digest_b64 = stored.split("$")
         if scheme != "scrypt":

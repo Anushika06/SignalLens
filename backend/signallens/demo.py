@@ -27,6 +27,9 @@ from signallens.plan import MonitoringPlan, PlanArea, PlanAttribute, PlanDomain,
 
 DEMO_EMAIL = "demo@signallens.app"
 DEMO_PASSWORD = "signallens-demo"
+# A second person in the demo organisation, so "someone else approves" can be shown.
+DEMO_ADMIN_EMAIL = "meera@signallens.app"
+DEMO_ADMIN_NAME = "Meera Iyer"
 
 PRICING_HTML = """<!doctype html>
 <html lang="en"><head><title>Pricing | Nimbus Pay</title>
@@ -87,6 +90,30 @@ async def seed_demo_user(s: AsyncSession) -> tuple[Organization, User, bool]:
     s.add_all([org, user])
     await s.flush()
     return org, user, True
+
+
+async def seed_demo_members(s: AsyncSession, org: Organization, owner: User) -> User:
+    """Meera Iyer (admin) joins the demo organisation; the demo user owns every demo workspace.
+
+    Idempotent: safe to run on every ``seed-demo``.
+    """
+    meera = (await s.execute(select(User).where(User.email == DEMO_ADMIN_EMAIL))).scalar_one_or_none()
+    if meera is None:
+        meera = User(id=uuid.uuid4(), org_id=org.id, email=DEMO_ADMIN_EMAIL, name=DEMO_ADMIN_NAME,
+                     password_hash=hash_password(DEMO_PASSWORD))
+        s.add(meera)
+        await s.flush()
+    for ws_id in (await s.execute(select(Workspace.id).where(Workspace.org_id == org.id))).scalars().all():
+        for user, role in ((owner, "owner"), (meera, "admin")):
+            if user.org_id != org.id:
+                continue
+            m = await s.get(WorkspaceMember, (ws_id, user.id))
+            if m is None:
+                s.add(WorkspaceMember(workspace_id=ws_id, user_id=user.id, role=role))
+            elif user is owner or m.role == "member":
+                m.role = role
+    await s.flush()
+    return meera
 
 
 async def seed_sandbox(s: AsyncSession, *, reset: bool = False) -> int:

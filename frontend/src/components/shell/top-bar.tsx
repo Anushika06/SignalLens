@@ -25,6 +25,7 @@ const SECTION: Record<string, { title: string; href?: (wid: string) => string }>
   intel: { title: "Intelligence", href: (wid) => routes.intel(wid) },
   world: { title: "World state", href: routes.world },
   monitoring: { title: "Monitoring", href: (wid) => routes.monitoring(wid) },
+  ask: { title: "Ask", href: (wid) => routes.ask(wid) },
   runs: { title: "Agent runs", href: routes.runs },
   approvals: { title: "Approvals", href: routes.approvals },
   settings: { title: "Settings", href: routes.settings },

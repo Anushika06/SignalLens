@@ -25,7 +25,7 @@ import httpx
 
 from signallens.fetch.http import Fetcher, FetchResult
 
-__all__ = ["CDX_ENDPOINT", "ArchiveCapture", "WaybackClient", "WaybackError"]
+__all__ = ["AVAILABILITY_ENDPOINT", "CDX_ENDPOINT", "ArchiveCapture", "WaybackClient", "WaybackError"]
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +33,7 @@ logger = logging.getLogger(__name__)
 _sleep = asyncio.sleep
 
 CDX_ENDPOINT = "https://web.archive.org/cdx/search/cdx"
+AVAILABILITY_ENDPOINT = "https://archive.org/wayback/available"
 _RETRY_DELAYS_S = (2.0, 5.0, 10.0)
 _COLLAPSE = {"month": "timestamp:6", "day": "timestamp:8"}
 
@@ -187,6 +188,35 @@ class WaybackClient:
                 logger.warning("wayback CDX: %s - retrying in %.0fs", last_problem, delay)
                 await _sleep(delay)
         raise WaybackError(f"CDX query for {url} failed after retries: {last_problem}")
+
+    async def closest_capture(self, url: str, when: date) -> ArchiveCapture | None:
+        """The capture closest to ``when`` via the Availability API, or None (never raises).
+
+        A fallback for when CDX is overloaded (it answers 503 for minutes at a time): the
+        availability endpoint is a different, lighter service. Single attempt, no retries.
+        """
+        async with self._lock:
+            await self._pace()
+            try:
+                response = await self._http.get(AVAILABILITY_ENDPOINT,
+                                                params={"url": url, "timestamp": when.strftime("%Y%m%d")})
+            except httpx.HTTPError as exc:
+                logger.info("wayback availability failed for %s: %s", url, exc)
+                return None
+            finally:
+                self._last_request = time.monotonic()
+        if response.status_code != 200:
+            return None
+        try:
+            closest = (response.json().get("archived_snapshots") or {}).get("closest") or {}
+        except (ValueError, AttributeError):
+            return None
+        timestamp = str(closest.get("timestamp") or "")
+        if not closest.get("available") or str(closest.get("status") or "200") != "200" or len(timestamp) < 8:
+            return None
+        original = str(closest.get("url") or "").split(f"/{timestamp}/", 1)[-1] or url
+        captures = _parse_cdx([["timestamp", "original", "statuscode"], [timestamp, original, "200"]])
+        return captures[0] if captures else None
 
     async def fetch_capture(self, capture: ArchiveCapture) -> FetchResult:
         """Fetch the capture's original bytes via the Fetcher (never raises).

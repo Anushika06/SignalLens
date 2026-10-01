@@ -23,6 +23,13 @@ from signallens.search.base import SearchProvider
 log = logging.getLogger(__name__)
 
 
+async def _close_renderer() -> None:
+    """Close the shared headless browser if JavaScript rendering ever started one."""
+    from signallens.fetch.render import close_renderer
+
+    await close_renderer()
+
+
 class NotConfigured(RuntimeError):
     """A capability needs an API key that is not configured."""
 
@@ -40,7 +47,7 @@ class Services:
     def require_llm(self) -> ModelGateway:
         if self.llm is None:
             raise NotConfigured(
-                "No language model is configured. Add ANTHROPIC_API_KEY, OPENAI_API_KEY or GEMINI_API_KEY "
+                "No language model is configured. Add NVIDIA_API_KEY "
                 "to backend/.env and restart."
             )
         return self.llm
@@ -55,7 +62,8 @@ class Services:
 
     async def aclose(self) -> None:
         for closer in (self.fetcher.aclose, self.wayback.aclose,
-                       getattr(self.search, "aclose", None), getattr(getattr(self.llm, "provider", None), "aclose", None)):
+                       getattr(self.search, "aclose", None), getattr(getattr(self.llm, "provider", None), "aclose", None),
+                       _close_renderer):
             if closer is None:
                 continue
             try:
@@ -66,9 +74,16 @@ class Services:
 
 def build_gateway(settings: Settings) -> ModelGateway | None:
     choice = settings.llm_provider
-    candidates = ["anthropic", "openai", "gemini"] if choice == "auto" else [choice]
+    # NVIDIA NIM is the only provider used automatically; the others must be chosen explicitly.
+    candidates = ["nvidia"] if choice == "auto" else [choice]
     for name in candidates:
-        if name == "anthropic" and settings.anthropic_api_key:
+        if name == "nvidia" and settings.nvidia_api_key:
+            from signallens.llm.nvidia import NvidiaProvider
+
+            # One retry only: a stalled NIM model is better handled by failing over to the next.
+            provider = NvidiaProvider(settings.nvidia_api_key, base_url=settings.nvidia_base_url,
+                                      timeout_s=settings.llm_timeout_s, max_retries=1)
+        elif name == "anthropic" and settings.anthropic_api_key:
             from signallens.llm.anthropic import AnthropicProvider
 
             provider = AnthropicProvider(settings.anthropic_api_key)
@@ -83,10 +98,16 @@ def build_gateway(settings: Settings) -> ModelGateway | None:
         else:
             continue
         fast, reasoning = DEFAULT_MODELS[name]
+        thinking = None
+        if name == "nvidia":
+            thinking = frozenset({"off": (), "reasoning": ("reasoning",), "all": ("fast", "reasoning")}[
+                settings.llm_thinking])
         return ModelGateway(
             provider, provider_name=name,
             fast_model=settings.llm_fast_model or fast,
             reasoning_model=settings.llm_reasoning_model or reasoning,
+            thinking_tiers=thinking,
+            fallback_models=tuple(m.strip() for m in settings.llm_fallback_models.split(",")) if name == "nvidia" else (),
         )
     return None
 

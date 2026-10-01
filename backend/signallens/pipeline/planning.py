@@ -12,6 +12,7 @@ from signallens.db.models import MonitoringPolicy, Workspace
 from signallens.db.session import transaction
 from signallens.domain.clustering import slug
 from signallens.fetch.extract import extract_result
+from signallens.fetch.render import render_if_js_shell
 from signallens.pipeline.common import team_names, today_str
 from signallens.plan import (
     MonitoringPlan,
@@ -185,10 +186,18 @@ async def validate_sources(services: Services, plan: MonitoringPlan) -> None:
                 src.enabled = False
                 return
             ext = extract_result(fr, mode="page")
+            st = services.settings
+            rendered = await render_if_js_shell(
+                fr, ext, enabled=st.render_js, timeout_s=st.render_timeout_s, user_agent=st.user_agent,
+                allow_private=bool(getattr(services.fetcher, "allow_private_hosts", False)),
+                max_bytes=st.fetch_max_bytes, renderer=services.extras.get("renderer"),
+            )
+            ext = rendered.doc
             ok = ext.quality == "ok"
             src.validation = SourceValidation(
                 ok=ok, http_status=fr.status, robots_allowed=True, quality=ext.quality, title=ext.title,
-                note=None if ok else (ext.quality_reason or "Page content looks empty or blocked"),
+                note=(rendered.note if rendered.rendered else None) if ok
+                else (ext.quality_reason or "Page content looks empty or blocked"),
             )
             src.enabled = ok
         else:

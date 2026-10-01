@@ -49,7 +49,14 @@ export type DetectionSource = "page_diff" | "attribute" | "news" | "backfill" | 
 export type WorkspaceStatus = "setup" | "planning" | "awaiting_approval" | "baselining" | "monitoring" | "paused";
 export type PolicyStatus = "planning" | "pending_approval" | "active" | "superseded" | "rejected" | "failed";
 export type RunStatus = "queued" | "running" | "succeeded" | "failed" | "budget_exhausted";
-export type AgentName = "planner" | "investigator" | "impact_analyst" | "extractor" | "triage" | "materiality";
+export type AgentName =
+  | "planner"
+  | "investigator"
+  | "impact_analyst"
+  | "extractor"
+  | "triage"
+  | "materiality"
+  | "ask";
 export type StepKind =
   | "decision"
   | "tool_call"
@@ -105,6 +112,9 @@ export type Me = {
   org: { id: string; name: string };
 };
 
+/** GET /api/auth/sso/config — single sign-on (OpenID Connect) availability. */
+export type SsoConfig = { enabled: boolean; provider_name: string };
+
 // ---------------------------------------------------------------------------------------------
 // 3. System
 // ---------------------------------------------------------------------------------------------
@@ -114,6 +124,8 @@ export type Health = { ok: boolean; db: boolean; worker_seen_at: string | null }
 export type SystemConfig = {
   llm: { provider: string | null; fast_model: string | null; reasoning_model: string | null; configured: boolean };
   search: { provider: string | null; configured: boolean };
+  /** Outgoing email for digests and alerts (never the key). Absent on older backends. */
+  email?: EmailConfig;
   /** Demo lab pages available. */
   sandbox_enabled: boolean;
   /** Show the demo-account shortcut on sign-in (off in production by default). */
@@ -159,11 +171,65 @@ export type WorkspaceDetail = WorkspaceSummary & {
   pending_policy_id: string | null;
   /** For the current user. */
   last_seen_at: string | null;
+  /** The current user's role in this workspace. Owners and admins approve external actions. */
+  my_role?: WorkspaceRole;
+  can_approve?: boolean;
+  can_manage_members?: boolean;
 };
 
-export type TeamInput = { name: string; areas: string[]; members: string[]; slack_webhook_url?: string | null };
+export type WorkspaceRole = "owner" | "admin" | "member";
 
-export type Team = { id: string; name: string; areas: string[]; members: string[]; slack_configured: boolean };
+export type WorkspaceMember = {
+  user_id: string;
+  name: string;
+  email: string;
+  role: WorkspaceRole;
+  /** "password" | "oidc" (signs in with single sign-on only). */
+  auth_provider: string;
+  is_you: boolean;
+  joined_at: string;
+};
+
+export type AddMemberInput = { email: string; role?: WorkspaceRole; name?: string };
+
+export type EmailProvider = "brevo" | "resend" | "smtp";
+
+export type EmailConfig = {
+  provider: EmailProvider | null;
+  configured: boolean;
+  /** The From address. */
+  sender: string | null;
+  digest_enabled: boolean;
+  /** Why email is not configured. */
+  reason?: string | null;
+};
+
+export type TeamInput = {
+  name: string;
+  areas: string[];
+  members: string[];
+  slack_webhook_url?: string | null;
+  /** Recipients of the team's email digest and immediate alerts. */
+  emails?: string[];
+};
+
+export type EmailTestResult = {
+  delivered: boolean;
+  provider: EmailProvider | null;
+  recipients: string[];
+  message_id: string | null;
+  error: string | null;
+};
+
+export type Team = {
+  id: string;
+  name: string;
+  areas: string[];
+  members: string[];
+  slack_configured: boolean;
+  /** Email recipients (may be missing on older backends). */
+  emails?: string[];
+};
 
 // ---------------------------------------------------------------------------------------------
 // 5. Monitoring plans (onboarding + human approval)
@@ -655,6 +721,12 @@ export type Approval = {
   /** Note the decider left when approving or rejecting. */
   decision_note?: string | null;
   result: Record<string, unknown> | null;
+  /** The person who asked for it; null when an agent proposed it. */
+  requested_by_user_id?: string | null;
+  requested_by_name?: string | null;
+  /** Whether the signed-in user may approve or reject it (owners/admins, not their own request). */
+  can_decide?: boolean;
+  cannot_decide_reason?: string | null;
 };
 
 export type ApprovalDecision = "approve" | "reject";
@@ -725,3 +797,49 @@ export type CheckEnqueued = { job_id: string };
 export type DecideInput = { decision: ApprovalDecision; note?: string };
 
 export type SandboxPageInput = { title?: string; html: string };
+
+// ---------------------------------------------------------------------------------------------
+// Ask — questions over the workspace's memory, answered by an agent with citations
+// ---------------------------------------------------------------------------------------------
+
+export type AskCitationKind = "fact" | "card" | "event" | "entity" | "web";
+
+export type AskCitation = {
+  kind: AskCitationKind;
+  id: string;
+  /** Label from SignalLens's own records (web: the search result title). */
+  label: string;
+  /** Web citations only: the page found outside SignalLens memory (not verified). */
+  url?: string | null;
+  /** Facts, cards and events: the entity they belong to. */
+  entity_id?: string | null;
+  /** Events: the intelligence card written about it, if any. */
+  report_id?: string | null;
+};
+
+export type AskItem = {
+  /** The agent run id. */
+  id: string;
+  status: RunStatus;
+  question: string;
+  asked_by: string | null;
+  /** Markdown with [n] markers pointing at `citations` (1-based). Null until answered. */
+  answer_markdown: string | null;
+  citations: AskCitation[];
+  evidence_note: string | null;
+  follow_up_questions: string[];
+  /** Part of the answer came from a web search outside SignalLens memory. */
+  used_web: boolean;
+  error: string | null;
+  steps_count: number;
+  created_at: string;
+  started_at: string | null;
+  finished_at: string | null;
+  usage: Usage;
+};
+
+export type AskDetail = AskItem & { budget: RunBudget; steps: RunStep[] };
+
+export type AskStarted = { run_id: string; status: RunStatus };
+
+export type AskInput = { question: string };

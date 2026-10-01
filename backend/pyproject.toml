@@ -20,7 +20,7 @@ dependencies = [
     "rapidfuzz>=3.10",
     "python-dateutil>=2.9",
     "tldextract>=5.1",
-    "pyjwt>=2.9",
+    "pyjwt[crypto]>=2.9",
 ]
 
 [project.optional-dependencies]

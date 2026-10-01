@@ -20,7 +20,7 @@ from collections.abc import Iterable
 from typing import Any
 from urllib.parse import unquote
 
-__all__ = ["inline_refs", "safe_schema_name", "strip_keys"]
+__all__ = ["inline_refs", "require_all_properties", "safe_schema_name", "strip_keys"]
 
 logger = logging.getLogger(__name__)
 
@@ -119,3 +119,26 @@ def safe_schema_name(name: str) -> str:
     """A tool / response-format name every provider accepts (``[A-Za-z0-9_-]{1,64}``)."""
     cleaned = re.sub(r"[^A-Za-z0-9_-]", "_", name.strip())[:64]
     return cleaned or "output"
+
+
+def require_all_properties(schema: dict[str, Any]) -> dict[str, Any]:
+    """Return a copy of ``schema`` where every object lists all of its properties as required.
+
+    Open models under guided decoding tend to emit only the ``required`` keys of a non-strict
+    schema, silently dropping optional fields such as an extracted value next to its quote.
+    Pydantic optionals are already nullable (``anyOf [.., null]``), so requiring the key only
+    forces the model to decide, and ``null`` remains a valid answer.
+    """
+
+    def walk(node: Any) -> Any:
+        if isinstance(node, dict):
+            out = {k: walk(v) for k, v in node.items()}
+            props = out.get("properties")
+            if out.get("type") == "object" and isinstance(props, dict) and props:
+                out["required"] = list(props)
+            return out
+        if isinstance(node, list):
+            return [walk(v) for v in node]
+        return node
+
+    return walk(schema)

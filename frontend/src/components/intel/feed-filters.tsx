@@ -34,6 +34,7 @@ function FilterSelect({ label, value, options, unknownLabel, onChange }: FilterS
   return (
     <Select value={value ?? ANY} onValueChange={(next) => onChange(next === ANY ? undefined : next)}>
       <SelectTrigger
+        aria-label={`${label} filter`}
         className={cn("w-full max-w-full min-w-0 sm:w-auto sm:max-w-72 sm:min-w-36", value !== undefined && "border-brand/40")}
       >
         <span className="shrink-0 text-muted-foreground">{label}:</span>

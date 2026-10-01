@@ -1,0 +1,56 @@
+# Render Blueprint: the SignalLens API + background worker as ONE free web service.
+#
+# Render's free plan has no background-worker service type, so the worker runs inside the
+# API process (SL_RUN_WORKER_IN_API=true). The database is external (Supabase free plan;
+# see the deployment guide). Values marked `sync: false` are asked for when you create the
+# Blueprint in the Render dashboard and are never stored in this file.
+services:
+  - type: web
+    name: signallens-api
+    runtime: docker
+    plan: free
+    region: singapore
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: SL_ENV
+        value: prod
+      - key: SL_SECRET_KEY
+        generateValue: true
+      - key: SL_DATABASE_URL # Supabase "Session pooler" connection string
+        sync: false
+      - key: NVIDIA_API_KEY
+        sync: false
+      - key: TAVILY_API_KEY
+        sync: false
+      - key: SL_PUBLIC_APP_URL # the Vercel URL, e.g. https://signallens.vercel.app
+        sync: false
+      - key: SL_PUBLIC_API_URL # this service's URL, e.g. https://signallens-api.onrender.com
+        sync: false
+      - key: SL_RUN_WORKER_IN_API
+        value: "true"
+      - key: SL_WORKER_CONCURRENCY
+        value: "2"
+      - key: SL_SEED_DEMO
+        value: "true"
+      - key: SL_DEMO_LOGIN
+        value: "true"
+      - key: SL_RENDER_JS # 512 MB free instances cannot run a headless browser
+        value: "false"
+      # Optional: protect the hosted agent endpoint (comma-separated keys for X-API-Key).
+      - key: SL_AGENT_API_KEYS
+        sync: false
+      # Optional: email digests (Render free blocks SMTP ports, so use Brevo's HTTP API).
+      - key: BREVO_API_KEY
+        sync: false
+      - key: SL_EMAIL_FROM
+        sync: false
+      # Optional: single sign-on with Google.
+      - key: SL_OIDC_ISSUER
+        value: https://accounts.google.com
+      - key: SL_OIDC_CLIENT_ID
+        sync: false
+      - key: SL_OIDC_CLIENT_SECRET
+        sync: false

@@ -13,6 +13,7 @@ from signallens.api import schemas as S
 from signallens.api.deps import services, session
 from signallens.db.base import utcnow
 from signallens.db.models import WorkerHeartbeat
+from signallens.notify.email import email_status
 from signallens.runtime.services import Services
 
 router = APIRouter(tags=["system"])
@@ -33,10 +34,13 @@ async def health(s: AsyncSession = Depends(session)) -> S.Health:
 async def system_config(svc: Services = Depends(services)) -> S.SystemConfig:
     llm = svc.llm
     search = svc.search
+    mail = email_status(svc.settings)
     return S.SystemConfig(
         llm=S.LLMConfig(provider=llm.provider_name if llm else None, fast_model=llm.fast_model if llm else None,
                         reasoning_model=llm.reasoning_model if llm else None, configured=llm is not None),
         search=S.SearchConfig(provider=getattr(search, "name", None) if search else None, configured=search is not None),
+        email=S.EmailConfig(provider=mail.provider, configured=mail.configured, sender=mail.sender,
+                            digest_enabled=svc.settings.digest_email_enabled, reason=mail.reason),
         sandbox_enabled=svc.settings.sandbox_enabled,
         demo_login=svc.settings.demo_login_enabled,
         version=__version__,

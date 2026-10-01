@@ -196,14 +196,14 @@ async def test_full_loop(env):
     # --- Human approval for an external share --------------------------------------------------------------
     approval = await ok(await c.post(f"/api/workspaces/{wid}/reports/{fee_report['id']}/share",
                                      json={"recipient": "advisor@partner.test", "note": "FYI"}))  # the UI sends "recipient"
-    assert approval["status"] == "pending"
+    assert approval["status"] == "pending" and approval["can_decide"] is True  # the sole owner may self-approve
     decided = await ok(await c.post(f"/api/workspaces/{wid}/approvals/{approval['id']}/decide",
                                     json={"decision": "approve", "note": "OK to share"}))
     assert decided["status"] == "approved"
     await env.worker.run_until_idle()
     done = (await ok(await c.get(f"/api/workspaces/{wid}/approvals")))[0]
     assert done["status"] == "executed" and done["result"]["delivered"] is False  # no SMTP configured: nothing sent
-    assert done["payload"]["to"] == "advisor@partner.test" and done["decision_note"] == "OK to share"
+    assert done["payload"]["to"] == "advisor@partner.test" and done["decision_note"] == "OK to share (self-approved: sole approver)"
 
     # --- A news event reported by several outlets: one event, corroborated ------------------------------------
     env.brain.triage_items = {

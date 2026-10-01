@@ -9,6 +9,7 @@ import {
   LayoutDashboard,
   Lightbulb,
   type LucideIcon,
+  MessageSquareText,
   Radar,
   Settings,
   UserCheck,
@@ -62,6 +63,7 @@ export function AppSidebar({ wid }: { wid: string }) {
       badge: unread ? { count: unread, label: `${unread} unread` } : undefined,
     },
     { label: "World state", icon: Globe2, href: routes.world(wid) },
+    { label: "Ask", icon: MessageSquareText, href: routes.ask(wid) },
     { label: "Monitoring", icon: Radar, href: routes.monitoring(wid) },
     { label: "Agent runs", icon: Bot, href: routes.runs(wid) },
     {

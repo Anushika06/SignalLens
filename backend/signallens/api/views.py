@@ -9,6 +9,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from signallens.api import schemas as S
+from signallens.api.roles import ApproverContext
 from signallens.db.base import utcnow
 from signallens.db.models import (
     AgentRun,
@@ -78,11 +79,16 @@ async def version_outs(s: AsyncSession, versions: list[StateVersion]) -> list[S.
     ) for v in versions]
 
 
-def approval_out(a: Approval) -> S.Approval:
+def approval_out(a: Approval, ctx: ApproverContext | None = None) -> S.Approval:
+    """``ctx`` (see api/roles.py) adds the requester's name and whether the viewer may decide."""
+    can, why = ctx.check(a) if ctx is not None else (False, None)
     return S.Approval(
         id=str(a.id), action_type=a.action_type, title=a.title, payload=a.payload or {}, reason=a.reason,
         requested_by=a.requested_by, report_id=sid(a.report_id), status=a.status, created_at=a.created_at,
         decided_at=a.decided_at, decided_by=a.decided_by, decision_note=a.decision_note, result=a.result,
+        requested_by_user_id=sid(a.requested_by_user_id),
+        requested_by_name=ctx.names.get(a.requested_by_user_id) if ctx and a.requested_by_user_id else None,
+        can_decide=can, cannot_decide_reason=why,
     )
 
 

@@ -25,7 +25,7 @@ export function PlanScreen({ wid, pid }: { wid: string; pid: string }) {
   useEffect(() => {
     const status = plan?.status ?? null;
     if (previousStatus.current === "planning" && status && status !== "planning") {
-      if (status === "pending_approval") toast.success("Your monitoring plan is ready to review");
+      if (status === "pending_approval") toast.success("Your monitoring plan is ready to review", { position: "top-center" });
       if (status === "failed") toast.error("The planner couldn't finish this plan");
       void revalidate((path) => path === paths.workspace(wid) || path === paths.workspaces);
     }

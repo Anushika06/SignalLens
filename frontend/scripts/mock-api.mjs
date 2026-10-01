@@ -13,6 +13,11 @@
  *   MOCK_PORT=8010        port to listen on
  *   MOCK_NO_KEYS=1        /api/system/config reports no LLM/search keys (tests the banner)
  *   MOCK_LATENCY_MS=120   artificial latency per request (0 disables; makes skeletons visible)
+ *   MOCK_SSO=0            hide "Continue with Google" (by default the mock offers single sign-on,
+ *                         which signs straight in as the demo user)
+ *
+ * Roles: Priya Raman (demo@signallens.app) owns every workspace; Meera Iyer
+ * (meera@signallens.app, same password) is an admin — sign in as her to approve Priya's requests.
  *
  * Scenario: "us" is the fictional Kivo Payments (a payment gateway for Indian SMBs).
  *   Workspace A "Razorpay watch"            — monitoring, rich data, a live investigation
@@ -29,6 +34,7 @@ const PORT = Number(process.env.MOCK_PORT ?? 8010);
 const HOST = "127.0.0.1";
 const NO_KEYS = process.env.MOCK_NO_KEYS === "1";
 const LATENCY_MS = Number(process.env.MOCK_LATENCY_MS ?? 120);
+const SSO_ENABLED = process.env.MOCK_SSO !== "0";
 
 // ═════════════════════════════════════════════════════════════════════════════════════════════
 // Time and ids
@@ -121,6 +127,7 @@ const BUDGETS = {
   extractor: { max_steps: 6, max_tool_calls: 2, max_seconds: 60, max_cost_usd: 0.05 },
   triage: { max_steps: 6, max_tool_calls: 2, max_seconds: 60, max_cost_usd: 0.05 },
   materiality: { max_steps: 6, max_tool_calls: 0, max_seconds: 30, max_cost_usd: 0.02 },
+  ask: { max_steps: 6, max_tool_calls: 8, max_seconds: 300, max_cost_usd: 0.5 },
 };
 
 // ═════════════════════════════════════════════════════════════════════════════════════════════
@@ -194,7 +201,24 @@ function makeTeam(input, id = randomUUID()) {
     areas: [...(input.areas ?? [])],
     members: [...(input.members ?? [])],
     slack_configured: Boolean(input.slack_webhook_url),
+    emails: normalizeEmails(input.emails),
   };
+}
+
+const EMAIL_RE = /^[^@\s<>()[\],;:"]+@[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?)+$/;
+
+/** Team email recipients: trimmed, de-duplicated, 422 on an invalid address (like the backend). */
+function normalizeEmails(list) {
+  if (list == null) return [];
+  if (!Array.isArray(list)) throw missing("emails", "Input should be a valid list", "list_type");
+  const out = [];
+  for (const raw of list) {
+    const address = typeof raw === "string" ? raw.trim() : "";
+    if (!address) continue;
+    if (!EMAIL_RE.test(address)) throw missing("emails", `Value error, '${address}' is not a valid email address`, "value_error");
+    if (!out.some((a) => a.toLowerCase() === address.toLowerCase())) out.push(address);
+  }
+  return out;
 }
 
 function defaultTeams(firstFixtureN) {
@@ -228,7 +252,8 @@ function makeWorkspace({ id = randomUUID(), orgId, name, status = "setup", creat
     sources: new Map(), // SourceView (exact contract shape)
     checks: new Map(), // sourceId -> SourceCheck[] (newest first)
     runs: new Map(), // internal run records (exact shape minus usage)
-    approvals: [], // Approval
+    approvals: [], // Approval (requested_by_user_id is stored; viewer-specific fields are added on read)
+    members: new Map(), // userId -> { role: "owner" | "admin" | "member", joined_at }
     notifications: [], // NotificationItem
     activity: [], // ActivityItem (newest first)
     funnel: { window_days: 7, checks: 0, changes: 0, filtered: 0, material: 0, investigated: 0, published: 0 },
@@ -726,14 +751,69 @@ function wsSummary(ws) {
   };
 }
 
-const wsDetail = (ws, user) => ({
-  ...wsSummary(ws),
-  profile: ws.profile,
-  teams: ws.teams,
-  active_policy_id: ws.activePolicyId,
-  pending_policy_id: ws.pendingPolicyId,
-  last_seen_at: lastSeen(ws, user),
-});
+const wsDetail = (ws, user) => {
+  const role = memberOf(ws, user).role;
+  return {
+    ...wsSummary(ws),
+    profile: ws.profile,
+    teams: ws.teams,
+    active_policy_id: ws.activePolicyId,
+    pending_policy_id: ws.pendingPolicyId,
+    last_seen_at: lastSeen(ws, user),
+    my_role: role,
+    can_approve: APPROVER_ROLES.has(role),
+    can_manage_members: APPROVER_ROLES.has(role),
+  };
+};
+
+// ── Roles: owners and admins approve; nobody approves their own request unless sole approver ──
+
+const APPROVER_ROLES = new Set(["owner", "admin"]);
+const ROLE_RANK = { owner: 0, admin: 1, member: 2 };
+
+/** Membership is organisation-wide: opening a workspace makes you a member (like the backend). */
+function memberOf(ws, user) {
+  let m = ws.members.get(user.id);
+  if (!m) {
+    m = { role: ws.members.size === 0 ? "owner" : "member", joined_at: nowIso() };
+    ws.members.set(user.id, m);
+  }
+  return m;
+}
+
+function decideCheck(ws, user, a) {
+  if (a.status !== "pending") return [false, null];
+  const role = memberOf(ws, user).role;
+  if (!APPROVER_ROLES.has(role)) {
+    return [false, `Only workspace owners and admins can approve or reject external actions (your role: ${role}).`];
+  }
+  const others = [...ws.members].some(([id, m]) => id !== user.id && APPROVER_ROLES.has(m.role));
+  if (a.requested_by_user_id === user.id && others) {
+    return [false, "You requested this action, so another owner or admin has to decide it."];
+  }
+  return [true, null];
+}
+
+function approvalView(ws, user, a) {
+  const [can, why] = decideCheck(ws, user, a);
+  const requester = a.requested_by_user_id ? db.users.get(a.requested_by_user_id) : null;
+  return {
+    ...a,
+    requested_by_user_id: a.requested_by_user_id ?? null,
+    requested_by_name: requester?.name ?? null,
+    can_decide: can,
+    cannot_decide_reason: why,
+  };
+}
+
+function memberView(ws, userId, viewer) {
+  const u = db.users.get(userId);
+  const m = ws.members.get(userId);
+  return {
+    user_id: u.id, name: u.name, email: u.email, role: m.role, auth_provider: u.password ? "password" : "oidc",
+    is_you: u.id === viewer.id, joined_at: m.joined_at,
+  };
+}
 
 const entityRef = (ws, id) => {
   const e = id ? ws.entities.get(id) : null;
@@ -1187,11 +1267,11 @@ function seedWorkspaceA(org) {
     created_at: iso(T0 - 9 * DAY - 55 * MIN),
     profile: KIVO_PROFILE,
     teams: [
-      { id: fx("team", 1), name: "Strategy", areas: ["pricing", "products", "partnerships", "regulation", "funding", "leadership"], members: ["priya.raman@kivo.in", "dev.malhotra@kivo.in"], slack_configured: true },
-      { id: fx("team", 2), name: "Product", areas: ["products", "pricing"], members: ["neha.kulkarni@kivo.in", "arjun.bose@kivo.in"], slack_configured: false },
-      { id: fx("team", 3), name: "Compliance", areas: ["regulation"], members: ["farah.siddiqui@kivo.in"], slack_configured: false },
-      { id: fx("team", 4), name: "Sales & BD", areas: ["partnerships", "pricing"], members: ["karan.gill@kivo.in", "meera.pillai@kivo.in"], slack_configured: false },
-      { id: fx("team", 5), name: "Leadership", areas: ["funding", "leadership"], members: ["vikram.rao@kivo.in"], slack_configured: false },
+      { id: fx("team", 1), name: "Strategy", areas: ["pricing", "products", "partnerships", "regulation", "funding", "leadership"], members: ["priya.raman@kivo.in", "dev.malhotra@kivo.in"], slack_configured: true, emails: ["strategy@kivo.in"] },
+      { id: fx("team", 2), name: "Product", areas: ["products", "pricing"], members: ["neha.kulkarni@kivo.in", "arjun.bose@kivo.in"], slack_configured: false, emails: ["neha.kulkarni@kivo.in", "arjun.bose@kivo.in"] },
+      { id: fx("team", 3), name: "Compliance", areas: ["regulation"], members: ["farah.siddiqui@kivo.in"], slack_configured: false, emails: ["farah.siddiqui@kivo.in"] },
+      { id: fx("team", 4), name: "Sales & BD", areas: ["partnerships", "pricing"], members: ["karan.gill@kivo.in", "meera.pillai@kivo.in"], slack_configured: false, emails: [] },
+      { id: fx("team", 5), name: "Leadership", areas: ["funding", "leadership"], members: ["vikram.rao@kivo.in"], slack_configured: false, emails: [] },
     ],
   });
   ws.activePolicyId = A.plan;
@@ -2955,6 +3035,8 @@ class HttpError extends Error {
   }
 }
 const NO_CONTENT = Symbol("no-content");
+/** The handler already wrote the response (redirects). */
+const HANDLED = Symbol("handled");
 const missing = (field, msg = "Field required", type = "missing") =>
   new HttpError(422, { detail: [{ loc: ["body", field], msg, type }] });
 
@@ -3039,6 +3121,7 @@ async function dispatch(req, res, path, query) {
     }
     if (["POST", "PUT", "PATCH"].includes(req.method)) ctx.body = await readJson(req);
     const out = await r.handler(ctx);
+    if (out === HANDLED) return;
     if (out === NO_CONTENT || out === undefined) {
       res.writeHead(204, { "cache-control": "no-store" });
       res.end();
@@ -3068,6 +3151,9 @@ on("POST", "/api/auth/login", ({ body, res }) => {
   const email = requireString(body, "email").toLowerCase();
   const password = requireString(body, "password");
   const user = [...db.users.values()].find((u) => u.email === email);
+  if (user && !user.password) {
+    throw new HttpError(400, "This account signs in with single sign-on, not a password. Use “Continue with Google”.");
+  }
   if (!user || user.password !== password) throw new HttpError(401, "Incorrect email or password");
   startSession(res, user);
   return me(user);
@@ -3098,6 +3184,36 @@ on("POST", "/api/auth/logout", ({ req, res }) => {
 
 on("GET", "/api/auth/me", ({ user }) => me(user));
 
+// ── Single sign-on (simulated: no identity provider; signs in as the demo user) ──
+
+on("GET", "/api/auth/sso/config", () => ({ enabled: SSO_ENABLED, provider_name: "Google" }), { auth: false });
+
+function safeNext(raw) {
+  const v = (raw ?? "").trim();
+  const ok = v.startsWith("/") && !v.startsWith("//") && !v.includes("\\") && !/[\u0000-\u001f]/.test(v);
+  return ok && !/^\/login(?:[/?#]|$)/.test(v) ? v : "/";
+}
+
+on("GET", "/api/auth/sso/start", ({ query, res }) => {
+  const location = SSO_ENABLED
+    ? `/api/auth/sso/callback?code=mock-code&state=mock-state&next=${encodeURIComponent(safeNext(query.get("next")))}`
+    : "/login?sso_error=not_configured";
+  res.writeHead(302, { location, "cache-control": "no-store" });
+  res.end();
+  return HANDLED;
+}, { auth: false });
+
+on("GET", "/api/auth/sso/callback", ({ query, res }) => {
+  if (!SSO_ENABLED || query.get("state") !== "mock-state") {
+    res.writeHead(302, { location: `/login?sso_error=${SSO_ENABLED ? "invalid_state" : "not_configured"}` });
+  } else {
+    startSession(res, db.users.get(fx("user", 1)));
+    res.writeHead(302, { location: safeNext(query.get("next")), "cache-control": "no-store" });
+  }
+  res.end();
+  return HANDLED;
+}, { auth: false });
+
 // ── §3 System ──
 
 on("GET", "/api/health", () => ({ ok: true, db: true, worker_seen_at: iso(Date.now() - 4 * SEC) }), { auth: false });
@@ -3107,6 +3223,10 @@ on("GET", "/api/system/config", () => ({
     ? { provider: null, fast_model: null, reasoning_model: null, configured: false }
     : { provider: "anthropic", fast_model: MODEL_FAST, reasoning_model: MODEL_REASONING, configured: true },
   search: NO_KEYS ? { provider: null, configured: false } : { provider: "tavily", configured: true },
+  email: NO_KEYS
+    ? { provider: null, configured: false, sender: null, digest_enabled: true,
+        reason: "No email provider is configured (set BREVO_API_KEY, RESEND_API_KEY or SL_SMTP_HOST)." }
+    : { provider: "brevo", configured: true, sender: "alerts@kivo.in", digest_enabled: true, reason: null },
   sandbox_enabled: true,
   demo_login: true,
   version: "0.1.0-mock",
@@ -3209,7 +3329,20 @@ on("PATCH", "/api/workspaces/:wid/teams/:tid", (ctx) => {
     validateWebhook(body.slack_webhook_url);
     team.slack_configured = Boolean(body.slack_webhook_url);
   }
+  if (body.emails !== undefined && body.emails !== null) team.emails = normalizeEmails(body.emails);
   return team;
+});
+
+on("POST", "/api/workspaces/:wid/teams/:tid/test-email", (ctx) => {
+  const ws = getWs(ctx);
+  const team = found(ws.teams.find((t) => t.id === ctx.params.tid), "Team");
+  const recipients = team.emails ?? [];
+  if (recipients.length === 0) throw new HttpError(422, "Add at least one recipient email to this team and save first.");
+  if (NO_KEYS) {
+    return { delivered: false, provider: null, recipients, message_id: null,
+             error: "No email provider is configured (set BREVO_API_KEY, RESEND_API_KEY or SL_SMTP_HOST)." };
+  }
+  return { delivered: true, provider: "brevo", recipients, message_id: `<${randomUUID()}@smtp-relay.mock>`, error: null };
 });
 
 on("DELETE", "/api/workspaces/:wid/teams/:tid", (ctx) => {
@@ -3345,6 +3478,7 @@ on("POST", "/api/workspaces/:wid/reports/:rid/share", (ctx) => {
     payload: { recipient, note, report_title: r.title },
     reason: `Requested by ${ctx.user.name}. Sharing a report outside your organisation always needs a human decision.`,
     requested_by: "user",
+    requested_by_user_id: ctx.user.id,
     report_id: r.id,
     status: "pending",
     created_at: nowIso(),
@@ -3354,7 +3488,7 @@ on("POST", "/api/workspaces/:wid/reports/:rid/share", (ctx) => {
   };
   ws.approvals.unshift(approval);
   addActivity(ws, { kind: "approval", status: "info", message: `Share request waiting for approval: “${truncate(r.title, 80)}”`, link: { type: "report", id: r.id } });
-  return approval;
+  return approvalView(ws, ctx.user, approval);
 });
 
 // ── §8 World state ──
@@ -3451,7 +3585,7 @@ on("DELETE", "/api/workspaces/:wid/learned-rules/:id", (ctx) => {
 
 // ── §10 Agent runs ──
 
-const AGENTS = ["planner", "investigator", "impact_analyst", "extractor", "triage", "materiality"];
+const AGENTS = ["planner", "investigator", "impact_analyst", "extractor", "triage", "materiality", "ask"];
 on("GET", "/api/workspaces/:wid/runs", (ctx) => {
   const ws = getWs(ctx);
   const agent = qp(ctx.query, "agent");
@@ -3470,6 +3604,143 @@ on("GET", "/api/workspaces/:wid/runs/:rid", (ctx) => {
   return runDetail(found(ws.runs.get(ctx.params.rid), "Run"));
 });
 
+// ── Ask: questions over the world state (agent run with agent="ask") ──
+
+const ASK_STOP = new Set("what which who has have did does the this that in on of for to a an is are was were and or our we us should look at week year month recently recent any about".split(" "));
+
+/** The canned agent: picks the report and fact that best match the question, cites them. */
+function askScript(ws, question) {
+  const words = question.toLowerCase().match(/[a-z0-9.]+/g)?.filter((w) => w.length > 2 && !ASK_STOP.has(w)) ?? [];
+  if (words.includes("compliance")) words.push("regulation", "rbi");
+  const entityName = (id) => ws.entities.get(id)?.name ?? "Unknown";
+  const score = (text) => words.reduce((n, w) => n + (text.toLowerCase().includes(w) ? 1 : 0), 0);
+  const reports = [...ws.reports.values()]
+    .map((r) => ({ r, s: score(`${r.title} ${r.area} ${r.change_label} ${entityName(r.entityId)}`) }))
+    .sort((a, b) => b.s - a.s || b.r.detected_at.localeCompare(a.r.detected_at));
+  const report = reports[0]?.r ?? null;
+  const fact =
+    [...ws.facts.values()]
+      .map((f) => ({ f, s: score(`${f.label} ${f.key} ${f.area} ${entityName(f.entityId)}`) + (report && f.id === report.factId ? 2 : 0) }))
+      .sort((a, b) => b.s - a.s)[0]?.f ?? null;
+  const query = words.slice(0, 4).join(" ") || question.slice(0, 40);
+  const decision = (name, thought, input, tin, tout) => st("decision", name, thought, input, null, { tokens_in: tin, tokens_out: tout, latency_ms: 1800 });
+  const steps = [
+    decision("search_memory", "Search memory for the names and topics in the question.", { query }, 1450, 120),
+    st("tool_call", "search_memory", `Searched memory: “${query}” → ${fact ? 1 : 0} facts, ${report ? 1 : 0} cards, 0 events, 1 entities`, { query }, { facts: fact ? [fact.id] : [], cards: report ? [report.id] : [] }, { latency_ms: 40 }),
+  ];
+  if (!report && !fact) {
+    steps.push(decision("finish", "Memory has nothing on this; say so plainly.", {}, 2100, 260));
+    return {
+      steps,
+      result: {
+        question,
+        answer_markdown: `SignalLens has no data on this in its memory yet. Nothing in the tracked facts, detected changes or intelligence cards for this workspace matches “${query}”.\n\nTo answer questions like this, add the company or topic to the monitoring plan.`,
+        citations: [],
+        evidence_note: "No evidence: memory has no matching facts or cards.",
+        follow_up_questions: ["What does this workspace monitor?", "What changed in the last 30 days?"],
+        used_web: false,
+      },
+    };
+  }
+  if (report) {
+    steps.push(
+      decision("get_card", "Open the most relevant card for its evidence and assessment.", { report_id: report.id }, 2300, 110),
+      st("tool_call", "get_card", `Opened card: ${report.title}`, { report_id: report.id }, { report_id: report.id, evidence: report.evidence.length }, { latency_ms: 25 }),
+    );
+  }
+  steps.push(decision("finish", "I have what I need; answer with citations.", {}, 3600, 520));
+  const citations = [];
+  const lines = [];
+  if (report) {
+    citations.push({ kind: "card", id: report.id, label: report.title, entity_id: report.entityId });
+    lines.push(`**${report.title}** [1]. The evidence status is *${report.evidence_status.replace("_", " ")}*, detected ${report.detected_at.slice(0, 10)}.`);
+    lines.push("", `- What changed (fact): ${report.what_changed} [1]`, `- Why it matters — SignalLens's assessment, not fact: ${report.why_it_matters} [1]`);
+  }
+  if (fact) {
+    const v = fact.versions.at(-1);
+    const prev = fact.versions.length > 1 ? fact.versions.at(-2) : null;
+    citations.push({ kind: "fact", id: fact.id, label: `${entityName(fact.entityId)} · ${fact.label}`, entity_id: fact.entityId });
+    const n = citations.length;
+    lines.push(`- ${entityName(fact.entityId)}'s ${fact.label.toLowerCase()} is **${v?.value_display ?? "not observed yet"}**${v ? ` (observed ${v.observed_at.slice(0, 10)})` : ""}${prev ? `, previously ${prev.value_display}` : ""} [${n}].`);
+  }
+  if (report?.entityId) citations.push({ kind: "entity", id: report.entityId, label: entityName(report.entityId) });
+  return {
+    steps,
+    result: {
+      question,
+      answer_markdown: lines.join("\n"),
+      citations,
+      evidence_note: report?.evidence_status === "confirmed"
+        ? "The change is confirmed by a verified quote from an official source; the impact is SignalLens's assessment."
+        : "The change is not yet confirmed by an official source; treat it as reported, not established.",
+      follow_up_questions: ["How has this value changed over the past year?", "Which teams were notified?", "What else changed this week?"],
+      used_web: false,
+    },
+  };
+}
+
+function askItem(run) {
+  const r = run.result ?? {};
+  return {
+    id: run.id,
+    status: run.status,
+    question: run.task.question,
+    asked_by: run.task.asked_by ?? null,
+    answer_markdown: r.answer_markdown ?? null,
+    citations: r.citations ?? [],
+    evidence_note: r.evidence_note ?? null,
+    follow_up_questions: r.follow_up_questions ?? [],
+    used_web: Boolean(r.used_web),
+    error: run.error,
+    steps_count: run.steps.length,
+    created_at: run.created_at,
+    started_at: run.started_at,
+    finished_at: run.finished_at,
+    usage: usage(run),
+  };
+}
+
+on("POST", "/api/workspaces/:wid/ask", (ctx) => {
+  const ws = getWs(ctx);
+  const question = requireString(ctx.body, "question").replace(/\s+/g, " ");
+  if (question.length < 3 || question.length > 500) {
+    throw new HttpError(422, { detail: [{ loc: ["body", "question"], msg: "String should have 3 to 500 characters", type: "string_length" }] });
+  }
+  const inFlight = [...ws.runs.values()].filter((r) => r.agent === "ask" && (r.status === "running" || r.status === "queued"));
+  if (inFlight.length >= 3) throw new HttpError(429, `${inFlight.length} questions are still being answered; wait for one to finish`);
+  const { steps, result } = askScript(ws, question);
+  const run = makeRun({ agent: "ask", status: "queued", title: `Ask: ${question.slice(0, 110)}`, task: { question, asked_by: ctx.user.name } });
+  run.created_at = nowIso();
+  ws.runs.set(run.id, run);
+  schedule(700, () => {
+    run.status = "running";
+    run.started_at = nowIso();
+  });
+  steps.forEach((s, i) => schedule(1200 + i * 1400, () => appendStep(run, s)));
+  schedule(1200 + steps.length * 1400 + 600, () => {
+    run.status = "succeeded";
+    run.finished_at = nowIso();
+    run.result = result;
+  });
+  return { run_id: run.id, status: run.status };
+});
+
+on("GET", "/api/workspaces/:wid/ask", (ctx) => {
+  const ws = getWs(ctx);
+  return [...ws.runs.values()]
+    .filter((r) => r.agent === "ask")
+    .sort(newestFirst("created_at"))
+    .slice(0, intParam(ctx.query, "limit", 20, 1, 50))
+    .map(askItem);
+});
+
+on("GET", "/api/workspaces/:wid/ask/:rid", (ctx) => {
+  const ws = getWs(ctx);
+  const run = ws.runs.get(ctx.params.rid);
+  if (!run || run.agent !== "ask") throw new HttpError(404, "Question not found");
+  return { ...askItem(run), budget: run.budget, steps: run.steps };
+});
+
 // ── §11 Human approvals ──
 
 const APPROVAL_STATUSES = ["pending", "approved", "rejected", "executed", "failed"];
@@ -3479,7 +3750,10 @@ on("GET", "/api/workspaces/:wid/approvals", (ctx) => {
   if (status && !APPROVAL_STATUSES.includes(status)) {
     throw new HttpError(422, { detail: [{ loc: ["query", "status"], msg: `Input should be ${APPROVAL_STATUSES.map((a) => `'${a}'`).join(", ")}`, type: "enum" }] });
   }
-  return ws.approvals.filter((a) => !status || a.status === status).sort(newestFirst("created_at"));
+  return ws.approvals
+    .filter((a) => !status || a.status === status)
+    .sort(newestFirst("created_at"))
+    .map((a) => approvalView(ws, ctx.user, a));
 });
 
 on("POST", "/api/workspaces/:wid/approvals/:aid/decide", (ctx) => {
@@ -3490,7 +3764,13 @@ on("POST", "/api/workspaces/:wid/approvals/:aid/decide", (ctx) => {
     throw new HttpError(422, { detail: [{ loc: ["body", "decision"], msg: "Input should be 'approve' or 'reject'", type: "enum" }] });
   }
   if (approval.status !== "pending") throw new HttpError(409, `This approval was already decided (${approval.status}).`);
-  const note = typeof ctx.body.note === "string" && ctx.body.note.trim() ? ctx.body.note.trim() : null;
+  const [allowed, why] = decideCheck(ws, ctx.user, approval);
+  if (!allowed) throw new HttpError(403, why);
+  let note = typeof ctx.body.note === "string" && ctx.body.note.trim() ? ctx.body.note.trim() : null;
+  if (decision === "approve" && approval.requested_by_user_id === ctx.user.id) {
+    note = note ? `${note} (self-approved: sole approver)` : "(self-approved: sole approver)";
+  }
+  approval.decision_note = note;
   const now = Date.now();
   approval.decided_at = iso(now);
   approval.decided_by = ctx.user.name;
@@ -3508,7 +3788,76 @@ on("POST", "/api/workspaces/:wid/approvals/:aid/decide", (ctx) => {
     link: approval.report_id ? { type: "report", id: approval.report_id } : null,
     at: now,
   });
-  return approval;
+  return approvalView(ws, ctx.user, approval);
+});
+
+// ── Members & roles ──
+
+function requireManager(ws, user) {
+  const me = memberOf(ws, user);
+  if (!APPROVER_ROLES.has(me.role)) throw new HttpError(403, "Only workspace owners and admins can manage members.");
+  return me;
+}
+const ownerCount = (ws) => [...ws.members.values()].filter((m) => m.role === "owner").length;
+function roleParam(body) {
+  const role = body.role ?? "member";
+  if (!(role in ROLE_RANK)) {
+    throw new HttpError(422, { detail: [{ loc: ["body", "role"], msg: "Input should be 'owner', 'admin' or 'member'", type: "literal_error" }] });
+  }
+  return role;
+}
+
+on("GET", "/api/workspaces/:wid/members", (ctx) => {
+  const ws = getWs(ctx);
+  memberOf(ws, ctx.user);
+  return [...ws.members.keys()]
+    .map((id) => memberView(ws, id, ctx.user))
+    .sort((a, b) => ROLE_RANK[a.role] - ROLE_RANK[b.role] || a.name.localeCompare(b.name));
+});
+
+on("POST", "/api/workspaces/:wid/members", (ctx) => {
+  const ws = getWs(ctx);
+  const me = requireManager(ws, ctx.user);
+  const email = requireString(ctx.body, "email").toLowerCase();
+  const role = roleParam(ctx.body);
+  if (role === "owner" && me.role !== "owner") throw new HttpError(403, "Only an owner can make someone an owner.");
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw new HttpError(422, "Enter a valid email address");
+  let user = [...db.users.values()].find((u) => u.email === email);
+  if (user && user.orgId !== ctx.user.orgId) throw new HttpError(409, "This email belongs to an account in another organisation.");
+  if (!user) {
+    const local = email.split("@")[0];
+    const name = typeof ctx.body.name === "string" && ctx.body.name.trim() ? ctx.body.name.trim() : titleCase(local.replace(/[._]/g, " "));
+    user = { id: randomUUID(), email, name, password: null, orgId: ctx.user.orgId };
+    db.users.set(user.id, user);
+  } else if (ws.members.has(user.id)) {
+    throw new HttpError(409, `${user.name} is already a member. Change their role instead.`);
+  }
+  ws.members.set(user.id, { role, joined_at: nowIso() });
+  return memberView(ws, user.id, ctx.user);
+});
+
+on("PATCH", "/api/workspaces/:wid/members/:uid", (ctx) => {
+  const ws = getWs(ctx);
+  const me = requireManager(ws, ctx.user);
+  const m = found(ws.members.get(ctx.params.uid), "Member");
+  const role = roleParam(ctx.body);
+  if (role !== m.role) {
+    if ((role === "owner" || m.role === "owner") && me.role !== "owner") throw new HttpError(403, "Only an owner can grant or remove the owner role.");
+    if (m.role === "owner" && ownerCount(ws) <= 1) throw new HttpError(409, "A workspace needs at least one owner. Make someone else an owner first.");
+    m.role = role;
+  }
+  return memberView(ws, ctx.params.uid, ctx.user);
+});
+
+on("DELETE", "/api/workspaces/:wid/members/:uid", (ctx) => {
+  const ws = getWs(ctx);
+  const leaving = ctx.params.uid === ctx.user.id;
+  const me = leaving ? memberOf(ws, ctx.user) : requireManager(ws, ctx.user);
+  const m = found(ws.members.get(ctx.params.uid), "Member");
+  if (m.role === "owner" && !leaving && me.role !== "owner") throw new HttpError(403, "Only an owner can remove another owner.");
+  if (m.role === "owner" && ownerCount(ws) <= 1) throw new HttpError(409, "A workspace needs at least one owner. Make someone else an owner first.");
+  ws.members.delete(ctx.params.uid);
+  return NO_CONTENT;
 });
 
 // ── §12 Notifications ──
@@ -3562,8 +3911,17 @@ function seed() {
   const org = { id: fx("org", 1), name: "Kivo Payments" };
   db.orgs.set(org.id, org);
   db.users.set(fx("user", 1), { id: fx("user", 1), email: "demo@signallens.app", name: "Priya Raman", password: "signallens-demo", orgId: org.id });
+  db.users.set(fx("user", 2), { id: fx("user", 2), email: "meera@signallens.app", name: "Meera Iyer", password: "signallens-demo", orgId: org.id });
+  db.users.set(fx("user", 3), { id: fx("user", 3), email: "dev.malhotra@kivo.in", name: "Dev Malhotra", password: null, orgId: org.id });
   seedSandbox();
-  for (const ws of [seedWorkspaceA(org), seedWorkspaceB(org), seedWorkspaceC(org)]) db.workspaces.set(ws.id, ws);
+  for (const ws of [seedWorkspaceA(org), seedWorkspaceB(org), seedWorkspaceC(org)]) {
+    ws.members.set(fx("user", 1), { role: "owner", joined_at: ws.created_at });
+    ws.members.set(fx("user", 2), { role: "admin", joined_at: ws.created_at });
+    if (ws.id === A.ws) ws.members.set(fx("user", 3), { role: "member", joined_at: ws.created_at });
+    // Requests made by people carry who asked: Priya asked for the shares, so Meera decides them.
+    for (const a of ws.approvals) if (a.requested_by === "user") a.requested_by_user_id = fx("user", 1);
+    db.workspaces.set(ws.id, ws);
+  }
 }
 
 seed();
@@ -3593,7 +3951,7 @@ const server = http.createServer(async (req, res) => {
 
 server.listen(PORT, HOST, () => {
   console.log(`SignalLens mock API listening on http://${HOST}:${PORT}`);
-  console.log("  Log in with demo@signallens.app / signallens-demo");
+  console.log("  Log in with demo@signallens.app / signallens-demo (owner) or meera@signallens.app (admin)");
   console.log(`  Workspaces: A ${A.ws} (monitoring) · B ${fx("ws", 2)} (plan awaiting approval) · C ${fx("ws", 3)} (planning)`);
   if (NO_KEYS) console.log("  MOCK_NO_KEYS=1 — /api/system/config reports no API keys");
 });

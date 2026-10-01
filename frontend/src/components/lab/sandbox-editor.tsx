@@ -38,7 +38,9 @@ function EditorForm({ page, from, onDirtyChange, onSaved }: EditorFormProps) {
   const [title, setTitle] = useState(page.title);
   const [html, setHtml] = useState(page.html);
   const [saving, setSaving] = useState(false);
-  const previewHtml = useDeferredValue(html);
+  // Scripts can't run in the sandboxed preview anyway; dropping them up front keeps the
+  // browser from logging a "Blocked script execution" error for every edit.
+  const previewHtml = useDeferredValue(html).replace(/<script\b[\s\S]*?<\/script\s*>/gi, "");
   const dirty = title !== baseline.title || html !== baseline.html;
 
   useEffect(() => {

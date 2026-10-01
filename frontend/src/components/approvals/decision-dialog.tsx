@@ -54,13 +54,17 @@ type DecisionDialogProps = {
   wid: string;
   approval: Approval;
   decision: ApprovalDecision;
+  /** The viewer may not decide (not an owner/admin, or their own request). */
+  disabled?: boolean;
+  /** Id of the element explaining why it's disabled. */
+  describedBy?: string;
 };
 
 /**
  * Confirm an approve/reject decision. States the consequence in plain words and lets the
  * decider leave an optional note that is recorded with the decision.
  */
-export function DecisionDialog({ wid, approval, decision }: DecisionDialogProps) {
+export function DecisionDialog({ wid, approval, decision, disabled = false, describedBy }: DecisionDialogProps) {
   const [open, setOpen] = useState(false);
   const [note, setNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -78,8 +82,8 @@ export function DecisionDialog({ wid, approval, decision }: DecisionDialogProps)
       await refreshAfterDecision(wid, approval);
     } catch (error) {
       toast.error(approve ? "Couldn't approve" : "Couldn't reject", { description: errorMessage(error) });
-      // 409: someone else decided first — show the current state.
-      if (isApiError(error) && error.status === 409) {
+      // 409: someone else decided first; 403: roles changed. Either way, show the current state.
+      if (isApiError(error) && (error.status === 409 || error.status === 403)) {
         setOpen(false);
         await refreshAfterDecision(wid, approval);
       }
@@ -91,7 +95,13 @@ export function DecisionDialog({ wid, approval, decision }: DecisionDialogProps)
   return (
     <Dialog open={open} onOpenChange={(next) => (submitting ? undefined : setOpen(next))}>
       <DialogTrigger asChild>
-        <Button variant={approve ? "default" : "outline"} size="sm" className="flex-1 sm:flex-none">
+        <Button
+          variant={approve ? "default" : "outline"}
+          size="sm"
+          className="flex-1 sm:flex-none"
+          disabled={disabled}
+          aria-describedby={describedBy}
+        >
           {approve ? <Check aria-hidden="true" /> : <X aria-hidden="true" />}
           {approve ? "Approve" : "Reject"}
         </Button>

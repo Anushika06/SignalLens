@@ -55,7 +55,10 @@ class User(Base):
     org_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"), index=True)
     email: Mapped[str] = mapped_column(String(320), unique=True)
     name: Mapped[str] = mapped_column(String(200))
-    password_hash: Mapped[str] = mapped_column(String(300))
+    # None for accounts that only sign in through single sign-on.
+    password_hash: Mapped[str | None] = mapped_column(String(300), default=None)
+    auth_provider: Mapped[str] = mapped_column(String(16), default="password")  # password | oidc
+    sso_subject: Mapped[str | None] = mapped_column(String(300), default=None, unique=True)
     created_at: Mapped[datetime] = created_at_col()
 
 
@@ -96,6 +99,8 @@ class Team(Base):
     areas: Mapped[list[str]] = mapped_column(default=list)
     members: Mapped[list[str]] = mapped_column(default=list)
     slack_webhook_url: Mapped[str | None] = mapped_column(Text, default=None)
+    # Recipients of the team's email digest and immediate email alerts.
+    emails: Mapped[list[str]] = mapped_column(default=list)
     created_at: Mapped[datetime] = created_at_col()
 
 
@@ -517,6 +522,8 @@ class Approval(Base):
     payload: Mapped[dict[str, Any]] = mapped_column(default=dict)
     reason: Mapped[str] = mapped_column(Text, default="")
     requested_by: Mapped[str] = mapped_column(String(40), default="user")
+    # The person who asked for the action; they may not approve it themselves.
+    requested_by_user_id: Mapped[uuid.UUID | None] = mapped_column(default=None)
     status: Mapped[str] = mapped_column(String(16), default="pending")
     decided_by: Mapped[str | None] = mapped_column(String(320), default=None)
     decided_at: Mapped[datetime | None] = mapped_column(default=None)
@@ -649,3 +656,23 @@ __all__ = [
     "WorkspaceMember",
     "WorkerHeartbeat",
 ]
+
+
+class AgentBrief(Base):
+    """A one-shot intelligence brief requested through the hosted agent endpoint (aiKart method 2).
+
+    Not tenant-owned: briefs are produced for API callers and only readable by their id.
+    """
+
+    __tablename__ = "agent_briefs"
+    __table_args__ = (Index("ix_agent_briefs_created", "created_at"),)
+    id: Mapped[uuid.UUID] = uuid_pk()
+    status: Mapped[str] = mapped_column(String(16), default="queued")  # queued|running|succeeded|failed
+    input: Mapped[dict[str, Any]] = mapped_column(default=dict)
+    markdown: Mapped[str | None] = mapped_column(Text, default=None)
+    result: Mapped[dict[str, Any] | None] = mapped_column(default=None)
+    trace: Mapped[list[Any]] = mapped_column(default=list)
+    error: Mapped[str | None] = mapped_column(Text, default=None)
+    client: Mapped[str | None] = mapped_column(String(120), default=None)
+    created_at: Mapped[datetime] = created_at_col()
+    finished_at: Mapped[datetime | None] = mapped_column(default=None)

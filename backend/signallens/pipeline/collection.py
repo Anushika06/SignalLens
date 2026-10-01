@@ -23,7 +23,9 @@ from signallens.db.base import utcnow
 from signallens.db.models import Document, Entity, Fact, Source, SourceCheck, SourceSnapshot
 from signallens.db.session import transaction
 from signallens.domain.scheduling import next_interval_minutes
-from signallens.fetch.extract import extract_result
+from signallens.fetch.extract import ExtractedDoc, extract_result
+from signallens.fetch.http import FetchResult
+from signallens.fetch.render import RENDERED_NOTE, render_if_js_shell
 from signallens.jobs.queue import PRIORITY_BACKGROUND, PRIORITY_PIPELINE, enqueue
 from signallens.pipeline.news import process_news, unseen
 from signallens.pipeline.pages import (
@@ -87,6 +89,32 @@ async def _finish_check(services: Services, source_id: uuid.UUID, check_id: uuid
             src.baselined = True
 
 
+async def _render_if_needed(services: Services, source: Source, fr: FetchResult,
+                            ext: ExtractedDoc) -> tuple[FetchResult, ExtractedDoc, bool]:
+    """Render an empty JavaScript shell with the headless browser when enabled (never a bot challenge).
+
+    Returns (fetch, extracted, rendered). The outcome is remembered on the source so later
+    checks skip conditional requests (the raw shell's ETag says nothing about the data).
+    """
+    st = services.settings
+    out = await render_if_js_shell(
+        fr, ext, enabled=st.render_js, timeout_s=st.render_timeout_s, user_agent=st.user_agent,
+        allow_private=bool(getattr(services.fetcher, "allow_private_hosts", False)), max_bytes=st.fetch_max_bytes,
+        renderer=services.extras.get("renderer"),
+    )
+    if out.note is not None:
+        ok = out.rendered and out.doc.quality == "ok"
+        async with transaction(services.session_factory) as s:
+            src = await s.get(Source, source.id)
+            src.config = {**(src.config or {}), "js_rendered": ok, "render_note": out.note}
+        source.config = {**(source.config or {}), "js_rendered": ok, "render_note": out.note}
+    return out.fetch, out.doc, out.rendered and out.doc.quality == "ok"
+
+
+def _render_meta(rendered: bool) -> dict:
+    return {"rendered_with": "headless_browser", "render_note": RENDERED_NOTE} if rendered else {}
+
+
 async def _open_check(services: Services, source: Source) -> uuid.UUID:
     check_id = uuid.uuid4()
     async with transaction(services.session_factory) as s:
@@ -112,6 +140,7 @@ async def baseline_source(services: Services, source_id: uuid.UUID) -> dict:
                             error=fr.error or fr.blocked)
         return {"outcome": outcome}
     ext = extract_result(fr, mode="page")
+    fr, ext, rendered = await _render_if_needed(services, source, fr, ext)
     if ext.quality != "ok":
         await _finish_check(services, source.id, check_id, outcome="degenerate" if ext.quality == "degenerate" else "blocked",
                             http_status=fr.status, error=ext.quality_reason)
@@ -119,7 +148,7 @@ async def baseline_source(services: Services, source_id: uuid.UUID) -> dict:
     now = utcnow()
     async with transaction(services.session_factory) as s:
         doc = await save_document(s, workspace_id=source.workspace_id, url=source.url, extracted=ext, fetch=fr,
-                                  origin="sandbox" if fr.from_sandbox else "live")
+                                  origin="sandbox" if fr.from_sandbox else "live", meta=_render_meta(rendered))
         snap = SourceSnapshot(id=uuid.uuid4(), source_id=source.id, document_id=doc.id, observed_at=now,
                               is_baseline=True, origin="live", quality="ok")
         s.add(snap)
@@ -130,6 +159,9 @@ async def baseline_source(services: Services, source_id: uuid.UUID) -> dict:
         if facts:
             ctx = await _run(services, source, "extractor", f"Baseline values: {source.url}")
             try:
+                if rendered:
+                    await ctx.step("note", "Page rendered with a headless browser: the raw HTML is an empty "
+                                           "JavaScript shell", name="render_js")
                 async with services.session_factory() as s:
                     previous = await previous_versions(facts, now, s)
                 readings = await read_values(ctx, facts=facts, previous=previous, doc=doc, url=source.url)
@@ -150,7 +182,7 @@ async def baseline_source(services: Services, source_id: uuid.UUID) -> dict:
                 raise
     await _finish_check(services, source.id, check_id, outcome="baseline", http_status=fr.status, snapshot_id=snap.id,
                         etag=fr.etag, last_modified=fr.last_modified, baseline=True)
-    return {"outcome": "baseline", "values": values}
+    return {"outcome": "baseline", "values": values, **({"rendered": True} if rendered else {})}
 
 
 # ---------------------------------------------------------------------------------------
@@ -272,8 +304,9 @@ async def _page(services: Services, source: Source, entities: dict[uuid.UUID, En
     check_id = await _open_check(services, source)
     async with services.session_factory() as s:
         last = await last_ok_snapshot(s, source.id)
-    fr = await services.fetcher.fetch(source.url, etag=source.etag if last else None,
-                                      last_modified=source.last_modified if last else None)
+    conditional = last is not None and not (source.config or {}).get("js_rendered")
+    fr = await services.fetcher.fetch(source.url, etag=source.etag if conditional else None,
+                                      last_modified=source.last_modified if conditional else None)
     if fr.not_modified:
         if last is not None:
             await _fill_missing_values(services, source, last[1])
@@ -285,6 +318,7 @@ async def _page(services: Services, source: Source, entities: dict[uuid.UUID, En
                             error=fr.error or fr.blocked)
         return {"outcome": outcome}
     ext = extract_result(fr, mode="page")  # absolute checks; relative check below
+    fr, ext, rendered = await _render_if_needed(services, source, fr, ext)
     if ext.quality != "ok":
         outcome = "degenerate" if ext.quality == "degenerate" else "blocked"
         await _finish_check(services, source.id, check_id, outcome=outcome, http_status=fr.status,
@@ -307,7 +341,7 @@ async def _page(services: Services, source: Source, entities: dict[uuid.UUID, En
     now = utcnow()
     async with transaction(services.session_factory) as s:
         doc = await save_document(s, workspace_id=source.workspace_id, url=source.url, extracted=ext, fetch=fr,
-                                  origin="sandbox" if fr.from_sandbox else "live")
+                                  origin="sandbox" if fr.from_sandbox else "live", meta=_render_meta(rendered))
         snap = SourceSnapshot(id=uuid.uuid4(), source_id=source.id, document_id=doc.id, observed_at=now,
                               is_baseline=last is None, origin="live", quality="ok")
         s.add(snap)
@@ -319,6 +353,9 @@ async def _page(services: Services, source: Source, entities: dict[uuid.UUID, En
 
     ctx = await _run(services, source, "materiality", f"Check: {source.url}")
     try:
+        if rendered:
+            await ctx.step("note", "Page rendered with a headless browser: the raw HTML is an empty JavaScript shell",
+                           name="render_js")
         out = await process_page_change(
             ctx, source=source, entity=entities.get(source.entity_id) if source.entity_id else None, policy=policy,
             prev_doc=last[1], new_doc=doc, observed_at=now, prev_observed_at=last[0].observed_at, historical=False,

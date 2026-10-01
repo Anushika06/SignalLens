@@ -26,3 +26,6 @@ Thumbs.db
 
 # Browser automation artifacts
 .playwright-mcp/
+
+# Private reference material (kept locally, never published)
+docs/

@@ -120,10 +120,10 @@ export const TONE_DOT: Record<Tone, string> = {
 /** Coloured text/icon on the page background. */
 export const TONE_TEXT: Record<Tone, string> = {
   red: "text-red-600 dark:text-red-400",
-  orange: "text-orange-600 dark:text-orange-400",
-  amber: "text-amber-600 dark:text-amber-400",
-  green: "text-emerald-600 dark:text-emerald-400",
-  teal: "text-teal-600 dark:text-teal-400",
+  orange: "text-orange-700 dark:text-orange-400",
+  amber: "text-amber-700 dark:text-amber-400",
+  green: "text-emerald-700 dark:text-emerald-400",
+  teal: "text-teal-700 dark:text-teal-400",
   blue: "text-blue-600 dark:text-blue-400",
   violet: "text-violet-600 dark:text-violet-400",
   brand: "text-brand",
@@ -397,6 +397,12 @@ export const AGENT: Record<AgentName, Meta> = {
   extractor: { label: "Extractor", tone: "gray", icon: FileText, description: "Extracts tracked values from pages." },
   triage: { label: "Triage", tone: "gray", icon: Filter, description: "Turns news items into structured events." },
   materiality: { label: "Materiality", tone: "gray", icon: Scale, description: "Decides whether a change is meaningful." },
+  ask: {
+    label: "Ask",
+    tone: "gray",
+    icon: MessageSquareText,
+    description: "Answers questions from the world state, citing facts and cards.",
+  },
 };
 
 export const STEP_KIND: Record<StepKind, Meta> = {

@@ -44,6 +44,9 @@ export const routes = {
   /** Opens the filtered-changes log with this event highlighted. */
   filteredEvent: (wid: string, eventId: string) => withQuery(`${w(wid)}/monitoring`, { tab: "filtered", event: eventId }),
 
+  /** `q` pre-fills the question box (e.g. from a card: "Ask about this"). */
+  ask: (wid: string, q?: string) => withQuery(`${w(wid)}/ask`, { q }),
+
   runs: (wid: string) => `${w(wid)}/runs`,
   run: (wid: string, runId: string) => `${w(wid)}/runs/${encodeURIComponent(runId)}`,
 

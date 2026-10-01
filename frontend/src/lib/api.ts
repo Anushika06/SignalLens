@@ -11,6 +11,7 @@
  * typed functions in `api`, one per contract endpoint.
  */
 import type {
+  AddMemberInput,
   Approval,
   ApproveInput,
   ApproveResult,
@@ -18,6 +19,7 @@ import type {
   CreatePlanInput,
   CreateWorkspaceInput,
   DecideInput,
+  EmailTestResult,
   FeedbackInput,
   FeedbackResult,
   LearnedRule,
@@ -37,8 +39,12 @@ import type {
   TeamInput,
   UpdateWorkspaceInput,
   WorkspaceDetail,
+  WorkspaceMember,
+  WorkspaceRole,
   AgentName,
   ApprovalStatus,
+  AskInput,
+  AskStarted,
 } from "./types";
 
 export class ApiError extends Error {
@@ -161,6 +167,8 @@ export const paths = {
   workspaces: "/api/workspaces",
   workspace: (wid: string) => ws(wid),
   teams: (wid: string) => `${ws(wid)}/teams`,
+  members: (wid: string) => `${ws(wid)}/members`,
+  ssoConfig: "/api/auth/sso/config",
 
   plan: (wid: string, pid: string) => `${ws(wid)}/plans/${seg(pid)}`,
 
@@ -189,11 +197,22 @@ export const paths = {
 
   sandboxPages: "/api/sandbox/pages",
   sandboxPage: (slug: string) => `/api/sandbox/pages/${seg(slug)}`,
+
+  askHistory: (wid: string, limit = 20) => withQuery(`${ws(wid)}/ask`, { limit }),
+  ask: (wid: string, runId: string) => `${ws(wid)}/ask/${seg(runId)}`,
 } as const;
 
 // ---------------------------------------------------------------------------------------------
 // Writes — one typed function per contract endpoint.
 // ---------------------------------------------------------------------------------------------
+
+/**
+ * Where the "Continue with <provider>" button navigates (a full page load, not fetch): the
+ * backend redirects to the identity provider and, after the callback, back to `next`.
+ */
+export function ssoStartUrl(next: string): string {
+  return withQuery("/api/auth/sso/start", { next });
+}
 
 export const api = {
   auth: {
@@ -215,6 +234,9 @@ export const api = {
     update: (wid: string, tid: string, body: Partial<TeamInput>) =>
       request<Team>("PATCH", `${paths.teams(wid)}/${seg(tid)}`, { body }),
     remove: (wid: string, tid: string) => request<void>("DELETE", `${paths.teams(wid)}/${seg(tid)}`),
+    /** Sends a test email to the team's saved recipients through the configured provider. */
+    testEmail: (wid: string, tid: string) =>
+      request<EmailTestResult>("POST", `${paths.teams(wid)}/${seg(tid)}/test-email`),
   },
 
   plans: {
@@ -247,6 +269,14 @@ export const api = {
     revoke: (wid: string, id: string) => request<LearnedRule>("DELETE", `${paths.learnedRules(wid)}/${seg(id)}`),
   },
 
+  members: {
+    /** Adds an org account, or invites a new email (they sign in with single sign-on). */
+    add: (wid: string, body: AddMemberInput) => request<WorkspaceMember>("POST", paths.members(wid), { body }),
+    setRole: (wid: string, uid: string, role: WorkspaceRole) =>
+      request<WorkspaceMember>("PATCH", `${paths.members(wid)}/${seg(uid)}`, { body: { role } }),
+    remove: (wid: string, uid: string) => request<void>("DELETE", `${paths.members(wid)}/${seg(uid)}`),
+  },
+
   approvals: {
     decide: (wid: string, aid: string, body: DecideInput) =>
       request<Approval>("POST", `${ws(wid)}/approvals/${seg(aid)}/decide`, { body }),
@@ -258,5 +288,10 @@ export const api = {
 
   sandbox: {
     save: (slug: string, body: SandboxPageInput) => request<SandboxPage>("PUT", paths.sandboxPage(slug), { body }),
+  },
+
+  ask: {
+    /** Queues the question; poll `paths.ask(wid, run_id)` for live steps and the cited answer. */
+    create: (wid: string, body: AskInput) => request<AskStarted>("POST", `${ws(wid)}/ask`, { body }),
   },
 };

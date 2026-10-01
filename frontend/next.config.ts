@@ -11,6 +11,9 @@ import type { NextConfig } from "next";
 const apiUrl = (process.env.SIGNALLENS_API_URL ?? "http://127.0.0.1:8000").replace(/\/+$/, "");
 
 const nextConfig: NextConfig = {
+  // The end-to-end tests build into their own directory (scripts/e2e-server.mjs sets
+  // NEXT_DIST_DIR) so they never clobber, or get clobbered by, a regular `next build`.
+  distDir: process.env.NEXT_DIST_DIR || ".next",
   async rewrites() {
     return [{ source: "/api/:path*", destination: `${apiUrl}/api/:path*` }];
   },

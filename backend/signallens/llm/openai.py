@@ -42,6 +42,14 @@ class OpenAIProvider(HTTPLLMProvider):
     name = "openai"
     default_base_url = "https://api.openai.com/v1"
 
+    def _prepare_schema(self, schema: dict[str, Any]) -> dict[str, Any]:
+        """Hook for servers that need the response schema adjusted."""
+        return schema
+
+    def _extra_payload(self, *, thinking: bool | None) -> dict[str, Any]:
+        """Hook for server-specific request fields."""
+        return {}
+
     async def generate(
         self,
         *,
@@ -52,6 +60,7 @@ class OpenAIProvider(HTTPLLMProvider):
         schema_name: str = "output",
         max_tokens: int = 4096,
         temperature: float | None = None,
+        thinking: bool | None = None,
     ) -> LLMResult:
         started = time.perf_counter()
         chat: list[dict[str, str]] = []
@@ -66,10 +75,12 @@ class OpenAIProvider(HTTPLLMProvider):
                 "type": "json_schema",
                 "json_schema": {
                     "name": safe_schema_name(schema_name),
-                    "schema": inline_refs(json_schema),
+                    "schema": self._prepare_schema(inline_refs(json_schema)),
                     "strict": False,
                 },
             }
+
+        payload.update(self._extra_payload(thinking=thinking))
 
         headers = {"Content-Type": "application/json"}
         if self._api_key:
@@ -78,21 +89,21 @@ class OpenAIProvider(HTTPLLMProvider):
 
         choices = body.get("choices") or []
         if not choices or not isinstance(choices[0], dict):
-            raise LLMError("openai: response contained no choices", retryable=True)
+            raise LLMError(f"{self.name}: response contained no choices", retryable=True)
         choice = choices[0]
         message = choice.get("message") or {}
         text = _content_text(message.get("content"))
         stop_reason = choice.get("finish_reason")
         refusal = message.get("refusal")
         if not text and refusal:
-            raise LLMError(f"openai: model refused: {str(refusal)[:200]}", retryable=False)
+            raise LLMError(f"{self.name}: model refused: {str(refusal)[:200]}", retryable=False)
 
         data: dict[str, Any] | None = None
         if json_schema is not None:
             data = parse_json_object(text)
             if data is None:
                 raise LLMError(
-                    f"openai: output is not a JSON object (finish_reason={stop_reason}): {text[:200]!r}",
+                    f"{self.name}: output is not a JSON object (finish_reason={stop_reason}): {text[:200]!r}",
                     retryable=True,
                 )
 

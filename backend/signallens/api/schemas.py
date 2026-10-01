@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
-from pydantic import AliasChoices, BaseModel, Field
+from pydantic import AfterValidator, AliasChoices, BaseModel, Field
 
+from signallens.notify.email import normalize_emails
 from signallens.plan import MonitoringPlan
 
 Severity = Literal["critical", "high", "medium", "low"]
@@ -63,9 +64,18 @@ class SearchConfig(BaseModel):
     configured: bool
 
 
+class EmailConfig(BaseModel):
+    provider: str | None  # "brevo" | "resend" | "smtp" | None
+    configured: bool
+    sender: str | None  # From address (never a key)
+    digest_enabled: bool
+    reason: str | None = None  # why email is not configured
+
+
 class SystemConfig(BaseModel):
     llm: LLMConfig
     search: SearchConfig
+    email: EmailConfig | None = None
     sandbox_enabled: bool
     demo_login: bool
     version: str
@@ -82,11 +92,17 @@ class CompanyProfile(BaseModel):
     relationship_to_subjects: str = ""
 
 
+# Validated, trimmed, de-duplicated recipient addresses (422 on an invalid one).
+TeamEmails = Annotated[list[str], AfterValidator(normalize_emails)]
+
+
 class TeamInput(BaseModel):
     name: str = Field(min_length=1, max_length=120)
     areas: list[str] = Field(default_factory=list)
     members: list[str] = Field(default_factory=list)
     slack_webhook_url: str | None = None
+    # Recipients of the team's email digest and immediate email alerts.
+    emails: TeamEmails = Field(default_factory=list)
 
 
 class TeamPatch(BaseModel):
@@ -94,6 +110,7 @@ class TeamPatch(BaseModel):
     areas: list[str] | None = None
     members: list[str] | None = None
     slack_webhook_url: str | None = None
+    emails: TeamEmails | None = None
 
 
 class Team(BaseModel):
@@ -102,6 +119,15 @@ class Team(BaseModel):
     areas: list[str]
     members: list[str]
     slack_configured: bool
+    emails: list[str] = Field(default_factory=list)
+
+
+class EmailTestResult(BaseModel):
+    delivered: bool
+    provider: str | None  # "brevo" | "resend" | "smtp" | None (not configured)
+    recipients: list[str]
+    message_id: str | None = None
+    error: str | None = None
 
 
 class WorkspaceCreate(BaseModel):
@@ -130,6 +156,10 @@ class WorkspaceDetail(WorkspaceSummary):
     active_policy_id: str | None
     pending_policy_id: str | None
     last_seen_at: datetime | None
+    # The signed-in user's role here: owner | admin | member. Owners and admins approve.
+    my_role: str = "member"
+    can_approve: bool = False
+    can_manage_members: bool = False
 
 
 class SeenOut(BaseModel):
@@ -328,6 +358,11 @@ class Approval(BaseModel):
     decided_by: str | None
     decision_note: str | None = None
     result: dict[str, Any] | None
+    # Who asked for it (None = proposed by an agent) and whether the viewer may decide it.
+    requested_by_user_id: str | None = None
+    requested_by_name: str | None = None
+    can_decide: bool = False
+    cannot_decide_reason: str | None = None
 
 
 class ReportDetail(ReportSummary):
@@ -609,3 +644,32 @@ class SandboxPageOut(BaseModel):
 class SandboxPageIn(BaseModel):
     title: str | None = None
     html: str = Field(max_length=500_000)
+
+
+# --- single sign-on and workspace members ---------------------------------------------------
+class SsoConfig(BaseModel):
+    enabled: bool
+    provider_name: str
+
+
+WorkspaceRole = Literal["owner", "admin", "member"]
+
+
+class Member(BaseModel):
+    user_id: str
+    name: str
+    email: str
+    role: str
+    auth_provider: str
+    is_you: bool
+    joined_at: datetime
+
+
+class MemberAdd(BaseModel):
+    email: str = Field(min_length=3, max_length=320)
+    role: WorkspaceRole = "member"
+    name: str | None = Field(default=None, max_length=200)
+
+
+class MemberPatch(BaseModel):
+    role: WorkspaceRole

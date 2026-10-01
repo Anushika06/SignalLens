@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from signallens.api import schemas as S
 from signallens.api.deps import Principal, current, get_workspace, session
+from signallens.api.roles import approver_context, load_requester_names
 from signallens.api.views import approval_out, report_summaries, sid, version_outs
 from signallens.db.base import utcnow
 from signallens.db.models import (
@@ -103,8 +104,10 @@ async def get_report(rid: uuid.UUID, ws: Workspace = Depends(get_workspace), s: 
                                        duration_ms=duration, conclusion=(inv.conclusion or {}).get("conclusion"))
     teams = (await s.execute(select(Team).where(Team.workspace_id == ws.id))).scalars().all()
     wanted = set(r.affected_team_ids or [])
-    approvals = (await s.execute(select(Approval).where(Approval.report_id == r.id)
-                                 .order_by(Approval.created_at))).scalars().all()
+    approvals = list((await s.execute(select(Approval).where(Approval.report_id == r.id)
+                                      .order_by(Approval.created_at))).scalars())
+    approver = await approver_context(s, ws, who.user.id)
+    await load_requester_names(s, approver, approvals)
     related_rows = (await s.execute(select(IntelligenceReport).where(
         IntelligenceReport.workspace_id == ws.id, IntelligenceReport.id != r.id,
         IntelligenceReport.entity_id == r.entity_id, IntelligenceReport.area == r.area,
@@ -125,7 +128,7 @@ async def get_report(rid: uuid.UUID, ws: Workspace = Depends(get_workspace), s: 
                           source_url=source.url if source and source.kind == "page" else None,
                           diff_excerpt=event.diff_excerpt),
         investigation=inv_view, analysis_run_id=sid(r.analysis_run_id),
-        approvals=[approval_out(a) for a in approvals],
+        approvals=[approval_out(a, approver) for a in approvals],
         related=await report_summaries(s, list(related_rows), user_id=who.user.id, policy=policy),
     )
 
@@ -208,7 +211,9 @@ async def share(rid: uuid.UUID, body: S.ShareIn, ws: Workspace = Depends(get_wor
     a = Approval(id=uuid.uuid4(), workspace_id=ws.id, report_id=r.id, action_type="share_report_externally",
                  title=f"Share “{r.title}” with {body.to}",
                  payload={"to": body.to, "note": body.note or "", "subject": f"SignalLens: {r.title}"},
-                 reason=f"Requested by {who.user.name}", requested_by="user")
+                 reason=f"Requested by {who.user.name}", requested_by="user", requested_by_user_id=who.user.id)
     s.add(a)
     await s.flush()
-    return approval_out(a)
+    approver = await approver_context(s, ws, who.user.id)
+    await load_requester_names(s, approver, [a])
+    return approval_out(a, approver)

@@ -5,6 +5,7 @@ import { ErrorState } from "@/components/common/states";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useWorkspace } from "@/lib/hooks";
 
+import { MembersSection } from "./members-section";
 import { ProfileForm } from "./profile-form";
 import { TeamsSection } from "./teams-section";
 
@@ -24,7 +25,7 @@ function ProfileSkeleton() {
   );
 }
 
-/** Workspace settings: who "we" are (company profile) and who hears about what (teams). */
+/** Workspace settings: who "we" are (company profile), who hears about what (teams), who approves (members). */
 export function SettingsScreen({ wid }: { wid: string }) {
   const { data: workspace, error, isLoading, mutate } = useWorkspace(wid);
 
@@ -42,6 +43,7 @@ export function SettingsScreen({ wid }: { wid: string }) {
         <ProfileForm key={workspace.id} wid={wid} workspace={workspace} />
       )}
       <TeamsSection wid={wid} />
+      <MembersSection wid={wid} />
     </div>
   );
 }

@@ -93,6 +93,7 @@ class ScriptedLLM(LLMProvider):
         schema_name: str = "output",
         max_tokens: int = 4096,
         temperature: float | None = None,
+        thinking: bool | None = None,
     ) -> LLMResult:
         self.calls.append(
             {

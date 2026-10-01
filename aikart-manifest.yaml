@@ -1,0 +1,61 @@
+apiVersion: aikart.dev/v1
+kind: AgentManifest
+
+metadata:
+  name: signallens
+  displayName: "SignalLens — Market & Competitor Intelligence Agent"
+  description: "Researches any company in one run: what changed on its official pages over the last year (Wayback-verified), recent news with evidence status, and why it matters to you."
+
+runtime:
+  type: docker
+  image: "ghcr.io/pratyushmishra-2nd/signallens-agent:1.0.0"
+  command: ["signallens", "aikart-run"]
+
+resources:
+  cpu: 2
+  memoryMb: 2048
+  timeoutSeconds: 280
+
+inputs:
+  - name: company
+    label: "Company to analyse (name or website)"
+    type: text
+    required: true
+  - name: your_company
+    label: "Your company (optional: who you are and what you sell)"
+    type: textarea
+    required: false
+  - name: focus
+    label: "Focus"
+    type: select
+    required: false
+    options: ["Everything", "Pricing & products", "Regulatory & compliance", "Partnerships & funding", "Leadership & hiring"]
+    default: "Everything"
+  - name: language
+    label: "Language"
+    type: select
+    required: false
+    options: ["English", "Hindi"]
+    default: "English"
+  - name: months_back
+    label: "History window (months)"
+    type: number
+    required: false
+    default: 12
+
+output:
+  format: markdown
+
+security:
+  networkEgress: allowlist
+  # integrate.api.nvidia.com: NVIDIA NIM models. api.tavily.com: web/news search and page
+  # extraction (company websites are read through Tavily inside the sandbox).
+  # web.archive.org / archive.org: Wayback Machine history.
+  # The last entry is the hosted SignalLens API the public image delegates to when it carries
+  # no model/search keys (SL_REMOTE_AGENT_URL) - replace it with your deployed API domain.
+  egressAllowlist:
+    - "integrate.api.nvidia.com"
+    - "api.tavily.com"
+    - "web.archive.org"
+    - "archive.org"
+    - "signallens-api.onrender.com"

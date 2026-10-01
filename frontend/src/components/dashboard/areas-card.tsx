@@ -40,7 +40,7 @@ export function AreasCard({ wid, areas }: { wid: string; areas: OverviewArea[] }
                       <MetaBadge
                         meta={IMPORTANCE[area.importance]}
                         tooltip={false}
-                        className="line-through opacity-60"
+                        className="line-through opacity-80"
                       />
                       <ArrowRight className="size-3 text-muted-foreground" aria-label="changed to" />
                     </>

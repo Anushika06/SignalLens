@@ -1,4 +1,5 @@
-"""LLM providers behind one interface: Anthropic, OpenAI (and compatible servers), Gemini.
+"""LLM providers behind one interface: NVIDIA NIM (default), Anthropic, OpenAI (and compatible
+servers), Gemini.
 
 Usage::
 
@@ -30,8 +31,9 @@ from signallens.llm.base import (
 )
 from signallens.llm.fake import ScriptedLLM, ScriptExhaustedError
 from signallens.llm.gemini import GeminiProvider
+from signallens.llm.nvidia import NvidiaProvider
 from signallens.llm.openai import OpenAIProvider, is_reasoning_model
-from signallens.llm.schema_utils import inline_refs, safe_schema_name, strip_keys
+from signallens.llm.schema_utils import inline_refs, require_all_properties, safe_schema_name, strip_keys
 
 __all__ = [
     "AnthropicProvider",
@@ -42,6 +44,7 @@ __all__ = [
     "LLMProvider",
     "LLMResult",
     "LLMUsage",
+    "NvidiaProvider",
     "OpenAIProvider",
     "Role",
     "ScriptExhaustedError",
@@ -49,6 +52,7 @@ __all__ = [
     "inline_refs",
     "is_reasoning_model",
     "parse_json_object",
+    "require_all_properties",
     "safe_schema_name",
     "strip_keys",
 ]

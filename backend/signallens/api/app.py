@@ -12,13 +12,17 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from signallens import __version__
 from signallens.api.routes import (
+    agent,
     approvals,
+    ask,
     auth,
+    members,
     monitoring,
     plans,
     reports,
     runs,
     sandbox,
+    sso,
     system,
     workspaces,
     world,
@@ -67,8 +71,11 @@ def create_app(settings: Settings | None = None, services: Services | None = Non
     app.add_middleware(CORSMiddleware, allow_origins=settings.cors_origins, allow_credentials=True,
                        allow_methods=["*"], allow_headers=["*"])
     api = APIRouter(prefix="/api")
-    for module in (system, auth, workspaces, plans, reports, world, monitoring, runs, approvals, sandbox):
+    for module in (system, auth, workspaces, plans, reports, world, monitoring, runs, approvals, sandbox, ask):
         api.include_router(module.router)
+    for module in (sso, members):  # single sign-on; workspace members and roles
+        api.include_router(module.router)
+    api.include_router(agent.router)  # hosted one-shot brief agent (aiKart method 2)
     app.include_router(api)
     return app
 

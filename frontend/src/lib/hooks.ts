@@ -33,11 +33,15 @@ import type {
   SandboxPage,
   SourceCheck,
   SourceView,
+  SsoConfig,
   SystemConfig,
   Team,
   WorkspaceDetail,
+  WorkspaceMember,
   WorkspaceSummary,
   ActivityItem,
+  AskDetail,
+  AskItem,
 } from "./types";
 
 /** Polling intervals in milliseconds. */
@@ -121,6 +125,19 @@ export function useWorkspace(wid: string | null) {
 
 export function useTeams(wid: string) {
   return useResource<Team[]>(paths.teams(wid));
+}
+
+export function useMembers(wid: string) {
+  return useResource<WorkspaceMember[]>(paths.members(wid));
+}
+
+/** Single sign-on availability; a failure just means "no SSO button". */
+export function useSsoConfig() {
+  return useSWR<SsoConfig, ApiError>(
+    paths.ssoConfig,
+    () => request<SsoConfig>("GET", paths.ssoConfig, { redirectOn401: false }),
+    { revalidateOnFocus: false, shouldRetryOnError: false },
+  );
 }
 
 // --- Plans -------------------------------------------------------------------------------------
@@ -253,4 +270,20 @@ export function useSandboxPages() {
 
 export function useSandboxPage(slug: string | null) {
   return useResource<SandboxPage>(slug ? paths.sandboxPage(slug) : null, { revalidateOnFocus: false });
+}
+
+// --- Ask -----------------------------------------------------------------------------------------
+
+const pollAskHistory = (items?: AskItem[]) =>
+  !items || items.some((item) => isRunActive(item.status)) ? POLL.runningRun : 0;
+const pollAsk = (item?: AskDetail) => (!item || isRunActive(item.status) ? POLL.runningRun : 0);
+
+/** Recent questions with their answers; polled every 2 s while one is still being answered. */
+export function useAskHistory(wid: string) {
+  return useResource<AskItem[]>(paths.askHistory(wid), { refreshInterval: pollAskHistory });
+}
+
+/** One question with its live trace; polled every 2 s while queued or running. */
+export function useAsk(wid: string, runId: string | null) {
+  return useResource<AskDetail>(runId ? paths.ask(wid, runId) : null, { refreshInterval: pollAsk });
 }

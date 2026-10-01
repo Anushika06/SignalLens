@@ -1,13 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Lock } from "lucide-react";
 
 import { MetaBadge } from "@/components/common/badges";
 import { JsonView } from "@/components/common/json-view";
 import { RelativeTime } from "@/components/common/relative-time";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { isAgentName } from "@/components/runs/agent-icon";
+import { useMe } from "@/lib/hooks";
 import { AGENT, APPROVAL_ACTION, APPROVAL_STATUS } from "@/lib/labels";
 import { routes } from "@/lib/routes";
 import type { Approval } from "@/lib/types";
@@ -16,9 +17,14 @@ import { ApprovalPayload } from "./approval-payload";
 import { DecisionDialog } from "./decision-dialog";
 import { resultError } from "./payload";
 
-/** "Proposed by the Impact analyst" for agents, "Requested by a team member" for people. */
-function requester(requestedBy: string) {
+/** "Proposed by the Impact analyst" for agents, "Requested by Priya Raman" (or "by you") for people. */
+function requester(approval: Approval, myId: string | undefined) {
+  const requestedBy = approval.requested_by;
   if (isAgentName(requestedBy)) return { agent: true, text: `Proposed by the ${AGENT[requestedBy].label} agent` };
+  if (approval.requested_by_user_id && approval.requested_by_user_id === myId) {
+    return { agent: false, text: "Requested by you" };
+  }
+  if (approval.requested_by_name) return { agent: false, text: `Requested by ${approval.requested_by_name}` };
   if (requestedBy === "user") return { agent: false, text: "Requested by a team member" };
   return { agent: false, text: `Requested by ${requestedBy}` };
 }
@@ -67,8 +73,11 @@ export function ApprovalCard({ wid, approval }: { wid: string; approval: Approva
   const action = APPROVAL_ACTION[approval.action_type];
   const Icon = action.icon;
   const titleId = `approval-${approval.id}-title`;
-  const who = requester(approval.requested_by);
+  const { data: me } = useMe();
+  const who = requester(approval, me?.user.id);
   const pending = approval.status === "pending";
+  // Older API responses carry no permission fields: let the server decide on submit.
+  const blockedReason = approval.can_decide === false ? (approval.cannot_decide_reason ?? "You can't decide this action.") : null;
 
   return (
     <article aria-labelledby={titleId} className="overflow-hidden rounded-xl border bg-card">
@@ -121,10 +130,29 @@ export function ApprovalCard({ wid, approval }: { wid: string; approval: Approva
 
       {pending ? (
         <footer className="flex flex-col gap-3 border-t bg-muted/30 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5">
-          <p className="text-xs text-muted-foreground">Nothing is sent until someone approves.</p>
+          {blockedReason ? (
+            <p className="flex items-start gap-1.5 text-xs text-pretty text-muted-foreground" id={`${titleId}-blocked`}>
+              <Lock className="mt-px size-3.5 shrink-0" aria-hidden="true" />
+              <span>{blockedReason}</span>
+            </p>
+          ) : (
+            <p className="text-xs text-muted-foreground">Nothing is sent until someone approves.</p>
+          )}
           <div className="flex gap-2">
-            <DecisionDialog wid={wid} approval={approval} decision="reject" />
-            <DecisionDialog wid={wid} approval={approval} decision="approve" />
+            <DecisionDialog
+              wid={wid}
+              approval={approval}
+              decision="reject"
+              disabled={Boolean(blockedReason)}
+              describedBy={blockedReason ? `${titleId}-blocked` : undefined}
+            />
+            <DecisionDialog
+              wid={wid}
+              approval={approval}
+              decision="approve"
+              disabled={Boolean(blockedReason)}
+              describedBy={blockedReason ? `${titleId}-blocked` : undefined}
+            />
           </div>
         </footer>
       ) : (

@@ -10,7 +10,8 @@ from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from signallens.api import schemas as S
-from signallens.api.deps import Principal, current, get_workspace, session
+from signallens.api.deps import Principal, current, get_workspace, services, session
+from signallens.api.roles import OWNER, ensure_member, is_approver
 from signallens.api.views import activity, funnel, policy_ids, report_summaries, workspace_summary
 from signallens.db.base import utcnow
 from signallens.db.models import (
@@ -24,6 +25,10 @@ from signallens.db.models import (
     Workspace,
     WorkspaceMember,
 )
+from signallens.notify.content import build_test_email
+from signallens.notify.email import email_status
+from signallens.pipeline.delivery import email_sender
+from signallens.runtime.services import Services
 from signallens.store.world import effective_policy
 
 router = APIRouter(prefix="/workspaces", tags=["workspaces"])
@@ -39,16 +44,11 @@ DEFAULT_TEAMS = [
 
 def team_out(t: Team) -> S.Team:
     return S.Team(id=str(t.id), name=t.name, areas=list(t.areas or []), members=list(t.members or []),
-                  slack_configured=bool(t.slack_webhook_url))
+                  slack_configured=bool(t.slack_webhook_url), emails=list(t.emails or []))
 
 
 async def _member(s: AsyncSession, ws: Workspace, who: Principal) -> WorkspaceMember:
-    m = await s.get(WorkspaceMember, (ws.id, who.user.id))
-    if m is None:
-        m = WorkspaceMember(workspace_id=ws.id, user_id=who.user.id)
-        s.add(m)
-        await s.flush()
-    return m
+    return await ensure_member(s, ws, who.user.id)
 
 
 async def _detail(s: AsyncSession, ws: Workspace, who: Principal) -> S.WorkspaceDetail:
@@ -58,7 +58,9 @@ async def _detail(s: AsyncSession, ws: Workspace, who: Principal) -> S.Workspace
     member = await _member(s, ws, who)
     return S.WorkspaceDetail(**summary.model_dump(), profile=S.CompanyProfile(**(ws.profile or {})),
                              teams=[team_out(t) for t in teams], active_policy_id=active_id,
-                             pending_policy_id=pending_id, last_seen_at=member.last_seen_at)
+                             pending_policy_id=pending_id, last_seen_at=member.last_seen_at,
+                             my_role=member.role, can_approve=is_approver(member.role),
+                             can_manage_members=is_approver(member.role))
 
 
 @router.get("", response_model=list[S.WorkspaceSummary])
@@ -78,8 +80,8 @@ async def create_workspace(body: S.WorkspaceCreate, s: AsyncSession = Depends(se
     teams = body.teams if body.teams is not None else [S.TeamInput(name=n, areas=a) for n, a in DEFAULT_TEAMS]
     for t in teams:
         s.add(Team(id=uuid.uuid4(), workspace_id=ws.id, name=t.name, areas=t.areas, members=t.members,
-                   slack_webhook_url=t.slack_webhook_url or None))
-    s.add(WorkspaceMember(workspace_id=ws.id, user_id=who.user.id, role="owner"))
+                   slack_webhook_url=t.slack_webhook_url or None, emails=t.emails))
+    s.add(WorkspaceMember(workspace_id=ws.id, user_id=who.user.id, role=OWNER))
     await s.flush()
     return await _detail(s, ws, who)
 
@@ -127,7 +129,7 @@ def _check_webhook(url: str | None) -> None:
 async def create_team(body: S.TeamInput, ws: Workspace = Depends(get_workspace), s: AsyncSession = Depends(session)):
     _check_webhook(body.slack_webhook_url)
     t = Team(id=uuid.uuid4(), workspace_id=ws.id, name=body.name, areas=body.areas, members=body.members,
-             slack_webhook_url=body.slack_webhook_url or None)
+             slack_webhook_url=body.slack_webhook_url or None, emails=body.emails)
     s.add(t)
     await s.flush()
     return team_out(t)
@@ -158,6 +160,26 @@ async def patch_team(tid: uuid.UUID, body: S.TeamPatch, ws: Workspace = Depends(
 async def delete_team(tid: uuid.UUID, ws: Workspace = Depends(get_workspace), s: AsyncSession = Depends(session)):
     await s.delete(await _team(s, ws, tid))
     return Response(status_code=204)
+
+
+@router.post("/{wid}/teams/{tid}/test-email", response_model=S.EmailTestResult)
+async def test_team_email(tid: uuid.UUID, ws: Workspace = Depends(get_workspace), s: AsyncSession = Depends(session),
+                          svc: Services = Depends(services)):
+    """Send a test email to the team's saved recipients through the configured provider."""
+    t = await _team(s, ws, tid)
+    recipients = list(t.emails or [])
+    if not recipients:
+        raise HTTPException(status_code=422, detail="Add at least one recipient email to this team and save first.")
+    status = email_status(svc.settings)
+    sender = email_sender(svc)
+    if sender is None:
+        return S.EmailTestResult(delivered=False, provider=status.provider, recipients=recipients,
+                                 error=status.reason or "Email is not configured on this deployment.")
+    content = build_test_email(team_name=t.name, workspace_name=ws.name, provider_label=status.label,
+                               app_url=svc.settings.public_app_url, workspace_id=ws.id)
+    result = await sender.send(to=recipients, subject=content.subject, text=content.text, html=content.html)
+    return S.EmailTestResult(delivered=result.ok, provider=result.provider, recipients=recipients,
+                             message_id=result.message_id, error=result.error)
 
 
 # --- overview / activity / inbox ---------------------------------------------------------------

@@ -47,6 +47,12 @@ async def signup(body: S.SignupIn, request: Request, response: Response, s: Asyn
 @router.post("/login", response_model=S.Me)
 async def login(body: S.LoginIn, request: Request, response: Response, s: AsyncSession = Depends(session)) -> S.Me:
     user = (await s.execute(select(User).where(User.email == body.email.strip().lower()))).scalar_one_or_none()
+    if user is not None and not user.password_hash:
+        settings = request.app.state.services.settings
+        how = (f"Use “Continue with {settings.oidc_provider_name}”" if settings.sso_enabled
+               else "Ask your administrator to enable single sign-on")
+        raise HTTPException(status_code=400,
+                            detail=f"This account signs in with single sign-on, not a password. {how}.")
     if user is None or not verify_password(body.password, user.password_hash):
         raise HTTPException(status_code=401, detail="Email or password is incorrect")
     org = await s.get(Organization, user.org_id)

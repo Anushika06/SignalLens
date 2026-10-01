@@ -16,6 +16,8 @@ import { api, isApiError, paths } from "@/lib/api";
 import { useSystemConfig } from "@/lib/hooks";
 import type { Me } from "@/lib/types";
 
+import { SsoSignIn } from "./sso-sign-in";
+
 type Mode = "signin" | "signup";
 type Values = { name: string; org_name: string; email: string; password: string };
 type Errors = Partial<Record<keyof Values, string>>;
@@ -64,7 +66,17 @@ function TextField({ id, label, error, hint, ...inputProps }: TextFieldProps) {
  * Sign in / create account. Auth calls never trigger the global 401 redirect, so a wrong
  * password shows up here as an inline message.
  */
-export function AuthForm({ onSuccess }: { onSuccess: (me: Me) => void }) {
+export function AuthForm({
+  onSuccess,
+  next = "/",
+  ssoError = null,
+}: {
+  onSuccess: (me: Me) => void;
+  /** Where single sign-on returns to (already validated by safeNextPath). */
+  next?: string;
+  /** `?sso_error=` from a failed single sign-on attempt. */
+  ssoError?: string | null;
+}) {
   const [mode, setMode] = useState<Mode>("signin");
   const [values, setValues] = useState<Values>({ name: "", org_name: "", email: "", password: "" });
   const [errors, setErrors] = useState<Errors>({});
@@ -187,7 +199,8 @@ export function AuthForm({ onSuccess }: { onSuccess: (me: Me) => void }) {
   return (
     <div className="space-y-4">
       <Card>
-        <CardContent>
+        <CardContent className="space-y-5">
+          <SsoSignIn next={next} error={ssoError} />
           <Tabs value={mode} onValueChange={switchMode} className="gap-5">
             <TabsList className="w-full">
               <TabsTrigger value="signin">Sign in</TabsTrigger>

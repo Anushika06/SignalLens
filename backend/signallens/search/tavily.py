@@ -1,6 +1,12 @@
-"""Tavily search (``POST https://api.tavily.com/search``)."""
+"""Tavily search (``POST https://api.tavily.com/search``) and page extraction (``/extract``).
+
+Extraction matters for egress-restricted runtimes (the aiKart sandbox): when the container
+may only reach ``api.tavily.com``, Tavily fetches official pages on our behalf.
+"""
 
 from __future__ import annotations
+
+from dataclasses import dataclass
 
 from signallens.search.base import (
     HTTPSearchProvider,
@@ -12,9 +18,23 @@ from signallens.search.base import (
     parse_published_date,
 )
 
-__all__ = ["TavilySearch"]
+__all__ = ["ExtractedContent", "TavilySearch"]
 
 _MAX_RESULTS = 20  # API limit
+_MAX_EXTRACT_URLS = 20  # API limit per request
+
+
+@dataclass
+class ExtractedContent:
+    """One URL read through Tavily Extract: ``content`` is the page text, empty on failure."""
+
+    url: str
+    content: str
+    error: str | None = None
+
+    @property
+    def ok(self) -> bool:
+        return bool(self.content.strip()) and self.error is None
 
 
 def _time_range(days: int) -> str:
@@ -32,6 +52,7 @@ class TavilySearch(HTTPSearchProvider):
 
     name = "tavily"
     endpoint = "https://api.tavily.com/search"
+    extract_endpoint = "https://api.tavily.com/extract"
 
     async def search(
         self,
@@ -81,3 +102,33 @@ class TavilySearch(HTTPSearchProvider):
                 )
             )
         return finalize_results(results, max_results)
+
+    async def extract(self, urls: list[str], *, depth: str = "basic") -> list[ExtractedContent]:
+        """Read pages through Tavily Extract; one entry per requested URL, in request order.
+
+        Failed URLs come back with ``error`` set instead of raising, so a caller reading five
+        pages still gets the four that worked. Transport/HTTP failures of the call itself
+        raise :class:`~signallens.search.base.SearchError` like :meth:`search`.
+        """
+        wanted = [u.strip() for u in urls if u and u.strip()][:_MAX_EXTRACT_URLS]
+        if not wanted:
+            return []
+        body = await self._post_json(
+            self.extract_endpoint,
+            headers={"Authorization": f"Bearer {self._api_key}"},
+            payload={"urls": wanted, "extract_depth": depth},
+        )
+        found: dict[str, ExtractedContent] = {}
+        for item in as_list(body.get("results")):
+            if isinstance(item, dict) and item.get("url"):
+                url = str(item["url"])
+                found[url] = ExtractedContent(url=url, content=str(item.get("raw_content") or ""))
+        for item in as_list(body.get("failed_results")):
+            if isinstance(item, dict) and item.get("url"):
+                url = str(item["url"])
+                found.setdefault(url, ExtractedContent(url=url, content="", error=str(item.get("error") or "failed")))
+        out = []
+        for url in wanted:
+            hit = found.get(url) or found.get(url.rstrip("/")) or found.get(url + "/")
+            out.append(hit or ExtractedContent(url=url, content="", error="not returned by Tavily"))
+        return out

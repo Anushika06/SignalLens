@@ -241,3 +241,47 @@ async def test_serper_general_search_endpoint_and_tbs(days, tbs):
     results = await SerperSearch("k").search("razorpay pricing", recency_days=days)
     assert json.loads(route.calls.last.request.content)["tbs"] == tbs
     assert results[0].url == "https://razorpay.com/pricing/" and results[0].published_at is None
+
+
+# --------------------------------------------------------------------------- Tavily Extract
+
+TAVILY_EXTRACT = "https://api.tavily.com/extract"
+
+
+@respx.mock
+async def test_tavily_extract_maps_results_and_failures_in_request_order():
+    route = respx.post(TAVILY_EXTRACT).mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "results": [{"url": "https://razorpay.com/pricing/", "raw_content": "Standard plan 2% per transaction"}],
+                "failed_results": [{"url": "https://razorpay.com/blocked", "error": "403"}],
+                "response_time": 1.2,
+            },
+        )
+    )
+    out = await TavilySearch("tvly-key").extract(
+        ["https://razorpay.com/blocked", "https://razorpay.com/pricing", "https://razorpay.com/missing", " "]
+    )
+    request = route.calls.last.request
+    assert request.headers["authorization"] == "Bearer tvly-key"
+    assert json.loads(request.content) == {
+        "urls": ["https://razorpay.com/blocked", "https://razorpay.com/pricing", "https://razorpay.com/missing"],
+        "extract_depth": "basic",
+    }
+    assert [o.ok for o in out] == [False, True, False]
+    assert out[0].error == "403"
+    assert out[1].content.startswith("Standard plan 2%")
+    assert out[2].error == "not returned by Tavily"
+
+
+async def test_tavily_extract_no_urls_short_circuits():
+    assert await TavilySearch("k").extract(["", "  "]) == []
+
+
+@respx.mock
+async def test_tavily_extract_raises_search_error_on_401(no_sleep):
+    respx.post(TAVILY_EXTRACT).mock(return_value=httpx.Response(401, json={"detail": {"error": "bad key"}}))
+    with pytest.raises(SearchError) as info:
+        await TavilySearch("k").extract(["https://example.com"])
+    assert info.value.status == 401 and not info.value.retryable

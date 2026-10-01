@@ -43,6 +43,15 @@ function slackUrlError(url: string): string | null {
   }
 }
 
+const EMAIL_RE = /^[^@\s<>()[\],;:"]+@[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?)+$/;
+
+/** Mirrors the backend check, so a typo is caught before saving. */
+function emailsError(emails: string[]): string | null {
+  const bad = emails.filter((email) => !EMAIL_RE.test(email.trim()));
+  if (bad.length === 0) return null;
+  return bad.length === 1 ? `“${bad[0]}” is not a valid email address.` : `${bad.length} addresses are not valid: ${bad.join(", ")}`;
+}
+
 type TeamDialogProps = {
   wid: string;
   /** Present when editing; absent when creating. */
@@ -61,6 +70,7 @@ export function TeamDialog({ wid, team, areaOptions, otherNames, trigger }: Team
   const [name, setName] = useState(team?.name ?? "");
   const [areas, setAreas] = useState<string[]>(team?.areas ?? []);
   const [members, setMembers] = useState<string[]>(team?.members ?? []);
+  const [emails, setEmails] = useState<string[]>(team?.emails ?? []);
   const [slackMode, setSlackMode] = useState<SlackMode>(team?.slack_configured ? "keep" : "set");
   const [slackUrl, setSlackUrl] = useState("");
   const [saving, setSaving] = useState(false);
@@ -70,6 +80,7 @@ export function TeamDialog({ wid, team, areaOptions, otherNames, trigger }: Team
     setName(team?.name ?? "");
     setAreas(team?.areas ?? []);
     setMembers(team?.members ?? []);
+    setEmails(team?.emails ?? []);
     setSlackMode(team?.slack_configured ? "keep" : "set");
     setSlackUrl("");
     setSubmitted(false);
@@ -82,9 +93,10 @@ export function TeamDialog({ wid, team, areaOptions, otherNames, trigger }: Team
       ? "Another team already has this name."
       : null;
   const urlError = slackMode === "set" ? slackUrlError(slackUrl) : null;
+  const emailError = emailsError(emails);
 
   function body(): TeamInput | Partial<TeamInput> {
-    const input: Partial<TeamInput> = { name: trimmed, areas, members };
+    const input: Partial<TeamInput> = { name: trimmed, areas, members, emails };
     if (slackMode === "set" && slackUrl.trim()) input.slack_webhook_url = slackUrl.trim();
     if (slackMode === "clear") input.slack_webhook_url = null;
     return input;
@@ -93,7 +105,7 @@ export function TeamDialog({ wid, team, areaOptions, otherNames, trigger }: Team
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSubmitted(true);
-    if (nameError || urlError) return;
+    if (nameError || urlError || emailError) return;
     setSaving(true);
     try {
       if (team) {
@@ -157,6 +169,24 @@ export function TeamDialog({ wid, team, areaOptions, otherNames, trigger }: Team
                 placeholder="Name or email, then Enter"
                 disabled={saving}
               />
+            </Field>
+
+            <Field data-invalid={emailError && submitted ? true : undefined}>
+              <FieldLabel htmlFor={`${idPrefix}-emails`}>Email recipients</FieldLabel>
+              <TagInput
+                id={`${idPrefix}-emails`}
+                value={emails}
+                onChange={setEmails}
+                placeholder="name@company.com, then Enter"
+                disabled={saving}
+                aria-describedby={`${idPrefix}-emails-hint`}
+                aria-invalid={submitted && emailError ? true : undefined}
+              />
+              <FieldDescription id={`${idPrefix}-emails-hint`}>
+                Critical and high severity changes are emailed right away; everything else arrives in one daily digest
+                email.
+              </FieldDescription>
+              {submitted && emailError ? <FieldError>{emailError}</FieldError> : null}
             </Field>
 
             <Field data-invalid={urlError && submitted ? true : undefined}>

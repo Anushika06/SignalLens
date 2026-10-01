@@ -97,11 +97,14 @@ class LLMProvider(ABC):
         schema_name: str = "output",
         max_tokens: int = 4096,
         temperature: float | None = None,
+        thinking: bool | None = None,
     ) -> LLMResult:
         """Run one completion.
 
         With ``json_schema`` the provider uses its native structured-output mechanism and
-        the result's ``data`` is the parsed JSON object (never ``None``).
+        the result's ``data`` is the parsed JSON object (never ``None``). ``thinking`` asks
+        models with a switchable reasoning mode to turn it on or off; ``None`` keeps the
+        model's default, and providers without such a switch ignore it.
         """
 
     async def aclose(self) -> None:
