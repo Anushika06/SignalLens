@@ -8,6 +8,13 @@ verifies it, explains why it matters **to your company**, and routes it to the t
 
 *Know what changed, whether it's true, and why it matters to you.*
 
+## Live Demo
+
+- **Web App**: [https://signallens-xi.vercel.app](https://signallens-xi.vercel.app/)
+- **Agent API**: [https://signallens-api-pa36.onrender.com](https://signallens-api-pa36.onrender.com/)
+- **Agent Health**: [https://signallens-api-pa36.onrender.com/api/agent/health](https://signallens-api-pa36.onrender.com/api/agent/health)
+- **Agent Manifest**: [https://signallens-api-pa36.onrender.com/api/agent/manifest](https://signallens-api-pa36.onrender.com/api/agent/manifest)
+
 ---
 
 ## The problem
